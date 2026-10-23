@@ -1,12 +1,13 @@
-// The Settings page: Focus on and off inline, then one row per section that
-// opens its own page and comes back with the Back chip.
+// The Settings page: Focus on and off with the chip to its color, the Theme
+// row, the status line's chip, then the icon sets. What opens a page comes
+// back with the Back chip.
 
 import type { EngineInterface, RenderChildren, RenderInput } from 'claude-code'
 
 import type { Panel } from '../../types'
 import type { Frame } from '../ui/frame'
-import { drawFocusSettings, readFocusTheme } from './focus'
-import { readStatusLineSummary } from './statusline'
+import { drawFocusSettings } from './focus'
+import { readStatusLineIsCcsl } from './statusline'
 import { readThemeName } from './themes'
 import { ICON_SETS, readIconSet, setIconSet } from '../icons'
 
@@ -15,31 +16,26 @@ export async function drawSettingsPage($: EngineInterface, e: RenderInput<'Pane'
   const { Box, Text, Button } = $.ui.resolve(e)
   const { t, heading, chip, chips } = ui
   const iconSet = await readIconSet($)
-  const band = await readFocusTheme($)
   const theme = (await readThemeName($)) ?? t('terminalDefault')
-  const statusLine = await readStatusLineSummary($)
-
-  // A row: the section's name, its current value, and the chevron that opens it.
-  const row = (key: string, label: string, value: string, panel: Panel) => (
-    <Button key={key} plain label={label} onPress={() => go(panel)}>
-      <Text>{label.padEnd(20)}</Text>
-      <Text bold>{value}</Text>
-      <Text dimColor>{' ›'}</Text>
-    </Button>
-  )
+  const isCcsl = await readStatusLineIsCcsl($)
 
   return [
-    ...(await drawFocusSettings($, ui)),
+    ...(await drawFocusSettings($, e, ui, go)),
+    // The theme on one row: the name picked beside the label, the chevron that opens the page.
+    <Box key="settings-theme-row" marginTop={1}>
+      <Button key="settings-theme" plain label={t('themeRow')} onPress={() => go('themes')}>
+        <Text>{`${t('themeRow')} `}</Text>
+        <Text bold>{`(${theme})`}</Text>
+        <Text dimColor>{' ›'}</Text>
+      </Button>
+    </Box>,
+    // Lit while ccstatusline draws the status line.
+    heading(t('statusLineRow')),
+    chips('settings-statusline-chips', [chip('settings-statusline', 'ccstatusline', isCcsl, () => go('statusline'))]),
     heading(t('iconsTitle')),
     chips(
       'settings-icons',
       ICON_SETS.map(set => chip(`settings-icons-${set}`, t(set === 'auto' ? 'iconsAuto' : set === 'nerd' ? 'iconsNerd' : 'iconsUnicode'), set === iconSet, () => setIconSet($, set))),
     ),
-    heading(t('tabSettings')),
-    <Box key="settings-rows" flexDirection="column">
-      {row('settings-focus-band', t('focusBandRow'), band, 'focus-band')}
-      {row('settings-theme', t('themeRow'), theme, 'themes')}
-      {row('settings-statusline', t('statusLineRow'), statusLine, 'statusline')}
-    </Box>,
   ]
 }

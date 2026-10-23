@@ -144,6 +144,9 @@ describe('status line page', () => {
     expect(command).toBeGreaterThanOrEqual(0)
     expect(about).toBeGreaterThan(command)
     expect(url).toBeGreaterThan(about)
+    // Back on Settings, the ccstatusline chip is lit.
+    await menu.press({ key: 'statusline-back' })
+    expect((await menu.find({ key: 'settings-statusline-box' }))?.props.borderColor).toBe('claude')
   })
 
   test('Install records first, writes the starter config where none exists, then the setting; Uninstall puts the predecessor back', async ($, on) => {

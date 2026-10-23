@@ -28,7 +28,7 @@ import {
   taskElapsed,
   toStatus,
 } from '../lib/focus'
-import type { Frame } from '../ui/frame'
+import { rainbow, type Frame } from '../ui/frame'
 
 const focusOn = atom({ plugin: 'cc-esol', key: 'focusOn' } as const, false)
 const theme = atom({ plugin: 'cc-esol', key: 'focusTheme' } as const, 'blue')
@@ -43,10 +43,6 @@ const HEX_COLOR = /^#[0-9a-f]{6}$/i
 const DONE_LINGER_MS = 8000
 // Rows the band gives its steps.
 const STEP_ROWS = 6
-
-export function readFocusTheme($: EngineInterface) {
-  return read($, theme)
-}
 
 // Settings ---------------------------------------------------------------------
 
@@ -284,13 +280,26 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
   )
 }
 
-// Focus on and off, on the Settings page.
-export async function drawFocusSettings($: EngineInterface, ui: Frame): Promise<RenderChildren[]> {
-  const { t, heading, chips, chip } = ui
+// Focus on and off, on the Settings page, and the chip that opens the color
+// page, framed and written in the band's color (rainbow: one color a letter).
+export async function drawFocusSettings($: EngineInterface, e: RenderInput<'Pane'>, ui: Frame, go: (panel: Panel) => unknown): Promise<RenderChildren[]> {
+  const { Text, Button } = $.ui.resolve(e)
+  const { t, heading, chips, chip, framed } = ui
   const on = await read($, focusOn)
+  const picked = await read($, theme)
+  const { bar } = bandColors(picked, await read($, customColors))
+  const label = t('focusBandRow')
+  const painted = framed(
+    'focus-band',
+    true,
+    <Button key="focus-band" plain label={label} onPress={() => go('focus-band')}>
+      <Text color={bar}>{picked === 'rainbow' ? rainbow(label).map(({ ch, color }) => <Text color={color}>{ch}</Text>) : label}</Text>
+    </Button>,
+    bar,
+  )
   return [
     heading(t('focusMode')),
-    chips('focus-switch', [chip('focus-on', t('on'), on, () => switchFocus($, true)), chip('focus-off', t('off'), !on, () => switchFocus($, false))]),
+    chips('focus-switch', [chip('focus-on', t('on'), on, () => switchFocus($, true)), chip('focus-off', t('off'), !on, () => switchFocus($, false)), painted]),
   ]
 }
 

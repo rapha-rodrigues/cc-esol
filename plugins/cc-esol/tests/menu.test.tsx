@@ -46,9 +46,12 @@ const mountAll = async ($: any) => ({
   pane: await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...paneAt }),
 })
 
-// A chip is picked when its frame is in the accent color.
-const picked = async (pane: { find: (q: { key: string }) => Promise<{ props: Record<string, unknown> } | undefined> }, key: string) =>
-  (await pane.find({ key: `${key}-box` }))?.props.borderColor === 'claude'
+type Found = { find: (q: { key: string }) => Promise<{ props: Record<string, unknown> } | undefined> }
+// The color of a chip's frame; a chip is picked when it is the accent color.
+const frameColor = async (pane: Found, key: string) => (await pane.find({ key: `${key}-box` }))?.props.borderColor
+const picked = async (pane: Found, key: string) => (await frameColor(pane, key)) === 'claude'
+// The bar colors the Focus color chip is painted in.
+const BAR = { blue: '#60a5fa', rainbow: '#f87171' }
 
 describe('the pane', () => {
   test('the lamp opens the pane on ESOL with its three tabs, on the terminal and the desktop', async ($, on) => {
@@ -79,24 +82,37 @@ describe('the pane', () => {
     expect(await pane.find({ key: 'lang-en' })).toBeUndefined()
   })
 
-  test('Focus is switched on Settings; its color on a page of its own, Settings still lit', async ($, on) => {
+  test('Settings: Focus with its color chip, the Theme row, the status line chip, the icon sets last', async ($, on) => {
+    bareEngine(on)
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    const keys = (await pane.findAll({ type: 'Button' })).map((b: { key?: string }) => b.key).filter((k?: string) => k?.startsWith('focus-') || k?.startsWith('settings-'))
+    expect(keys).toEqual(['focus-on', 'focus-off', 'focus-band', 'settings-theme', 'settings-statusline', 'settings-icons-auto', 'settings-icons-nerd', 'settings-icons-unicode'])
+    expect((await pane.find({ key: 'settings-theme' }))?.text).toBe('Theme (Terminal default) ›')
+    expect((await pane.find({ key: 'settings-statusline' }))?.text).toBe('ccstatusline')
+    expect(await picked(pane, 'settings-statusline')).toBe(false)
+  })
+
+  test('Focus is switched on Settings; its color chip, painted in that color, opens a page of its own, Settings still lit', async ($, on) => {
     bareEngine(on)
     const { hint, pane } = await mountAll($)
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
     await pane.press({ key: 'focus-on' })
     expect(await picked(pane, 'focus-on')).toBe(true)
-    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/blue/)
-    await pane.press({ key: 'settings-focus-band' })
+    expect(await frameColor(pane, 'focus-band')).toBe(BAR.blue)
+    await pane.press({ key: 'focus-band' })
     await pane.press({ key: 'focus-theme-rainbow' })
     expect((await pane.find({ key: 'focus-theme-rainbow' }))?.text).toMatch(/rainbow ✓/)
     expect((await pane.find({ key: 'tab-settings' }))?.text).toMatch(/◆/)
     await pane.press({ key: 'focus-band-back' })
-    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/rainbow/)
+    expect(await frameColor(pane, 'focus-band')).toBe(BAR.rainbow)
+    expect((await pane.find({ key: 'focus-band' }))?.text).toBe('Focus color')
     // The pick holds across tabs.
     await pane.press({ key: 'tab-model' })
     await pane.press({ key: 'tab-settings' })
-    await pane.press({ key: 'settings-focus-band' })
+    await pane.press({ key: 'focus-band' })
     expect((await pane.find({ key: 'focus-theme-rainbow' }))?.text).toMatch(/rainbow ✓/)
     await pane.press({ key: 'focus-band-back' })
     await pane.press({ key: 'focus-off' })
@@ -185,7 +201,7 @@ describe('kept settings', () => {
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
     expect(await picked(pane, 'focus-on')).toBe(true)
-    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/rainbow/)
+    expect(await frameColor(pane, 'focus-band')).toBe(BAR.rainbow)
     await pane.press({ key: 'tab-model' })
     expect((await pane.find({ key: 'effort:medium' }))?.text).toBe(' medium ')
     expect(await picked(pane, 'pick-model:sonnet')).toBe(true)
@@ -201,7 +217,7 @@ describe('kept settings', () => {
     expect(await picked(pane, 'focus-off')).toBe(true)
     await $.prompt.submit({ text: 'please check the build again', wait: false, origin: { kind: 'composer' } })
     expect(await picked(pane, 'focus-on')).toBe(true)
-    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/rainbow/)
+    expect(await frameColor(pane, 'focus-band')).toBe(BAR.rainbow)
     await pane.press({ key: 'tab-model' })
     expect((await pane.find({ key: 'effort:medium' }))?.text).toBe(' medium ')
   })
@@ -231,7 +247,7 @@ describe('the Theme page', () => {
     const { hint, pane } = await mountAll($)
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
-    expect((await pane.find({ key: 'settings-theme' }))?.text).toMatch(/Terminal default|harbor-/)
+    expect((await pane.find({ key: 'settings-theme' }))?.text).toMatch(/^Theme \((Terminal default|harbor-\d\d)\) ›$/)
     await pane.press({ key: 'settings-theme' })
     const rows = (await pane.findAll({ type: 'Button' })).filter((b: { key?: string }) => b.key?.startsWith('pick-theme:'))
     expect(rows.length).toBeGreaterThan(0)

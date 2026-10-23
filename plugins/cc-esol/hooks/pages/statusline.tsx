@@ -93,11 +93,10 @@ export async function readStatusLineCommand($: EngineInterface): Promise<string 
   return (await read($, statusLine))?.command ?? null
 }
 
-// For the Settings row.
-export async function readStatusLineSummary($: EngineInterface): Promise<string> {
-  const info = await read($, statusLine)
-  if (info === null) return '…'
-  return info.kind === 'none' ? 'not installed' : info.kind === 'other' ? 'another one' : info.kind === 'managed' ? 'ccstatusline · from here' : 'ccstatusline'
+// For the Settings chip: whether ccstatusline draws the status line.
+export async function readStatusLineIsCcsl($: EngineInterface): Promise<boolean> {
+  const kind = (await read($, statusLine))?.kind
+  return kind === 'managed' || kind === 'unmanaged'
 }
 
 // Actions ----------------------------------------------------------------------
