@@ -1,0 +1,312 @@
+import { describe, expect, mock, test } from 'claude-code/testing'
+import type { On } from 'claude-code'
+
+import { EFFORT_TINT } from '../hooks/lib/session-controls'
+
+const PLUGIN = 'cc-esol'
+
+// The three drawings the plugin owns: the band above the prompt, the pane, the row under the prompt.
+const bandAt = (bodyColumns = 80) => ({
+  component: 'AbovePrompt' as const,
+  props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns, scroll: { offset: 0, bodyRows: 20 }, view: {} },
+})
+const paneAt = {
+  component: 'Pane' as const,
+  requestId: 'cc-esol',
+  props: { title: 'esol', isFocused: true, bodyColumns: 56, placement: 'dock' as const, scroll: { offset: 0, bodyRows: 26 }, view: {} },
+}
+const hintAt = { component: 'PromptHint' as const, props: { isDraft: false, isWorking: false, hint: '? for shortcuts' } }
+
+// A theme file of this test's own, parameterized by name and background.
+const themeYaml = (name: string, background: string) =>
+  [
+    `name: ${name}`,
+    'accent: "#5ec4d6"',
+    `background: "${background}"`,
+    'foreground: "#e6e1d6"',
+    'terminal_colors:',
+    '  normal:',
+    ...['#1b2530', '#d9534f', '#7fb069', '#e3b341', '#4f8fc9', '#b388eb', '#5ec4d6', '#e6e1d6'].map((c, i) => `    ${['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'][i]}: "${c}"`),
+    '  bright:',
+    ...['#55657a', '#ff7b72', '#a6e3a1', '#f9e2af', '#89b4fa', '#cba6f7', '#94e2d5', '#ffffff'].map((c, i) => `    ${['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'][i]}: "${c}"`),
+    '',
+  ].join('\n')
+
+// The least an engine beneath needs for the pane to draw.
+const bareEngine = (on: On) => {
+  mock.store(on)
+  on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine' }))
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
+  on('ui.close', () => ({ value: undefined }))
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mountAll = async ($: any) => ({
+  hint: await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...hintAt }),
+  pane: await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...paneAt }),
+})
+
+// A chip is picked when its frame is in the accent color.
+const picked = async (pane: { find: (q: { key: string }) => Promise<{ props: Record<string, unknown> } | undefined> }, key: string) =>
+  (await pane.find({ key: `${key}-box` }))?.props.borderColor === 'claude'
+
+describe('the pane', () => {
+  test('the lamp opens the pane on ESOL with its three tabs, on the terminal and the desktop', async ($, on) => {
+    bareEngine(on)
+    for (const surface of ['terminal', 'desktop'] as const) {
+      const hint = await $.ui.mount({ plugin: PLUGIN, surface, ...hintAt })
+      const pane = await $.ui.mount({ plugin: PLUGIN, surface, ...paneAt })
+      expect((await hint.find({ key: 'esol-toggle' }))?.text).toMatch(/esol ▲/)
+      expect(await pane.find({ key: 'tab-esol' })).toBeUndefined()
+      await hint.press({ key: 'esol-toggle' })
+      expect((await hint.find({ key: 'esol-toggle' }))?.text).toMatch(/▼/)
+      for (const key of ['tab-esol', 'tab-model', 'tab-settings', 'esol-close']) expect(await pane.find({ key })).toBeDefined()
+      expect((await pane.find({ key: 'tab-esol' }))?.text).toMatch(/◆ ESOL/)
+      expect((await pane.find({ key: 'tab-model' }))?.text).not.toMatch(/◆/)
+      await hint.press({ key: 'esol-toggle' })
+      await hint.unmount()
+      await pane.unmount()
+    }
+  })
+
+  test('no language row: the pane speaks English', async ($, on) => {
+    bareEngine(on)
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    expect((await pane.find({ key: 'focus-on' }))?.text).toMatch(/On/)
+    expect(await pane.find({ key: 'lang-pt' })).toBeUndefined()
+    expect(await pane.find({ key: 'lang-en' })).toBeUndefined()
+  })
+
+  test('Focus is switched on Settings; its color on a page of its own, Settings still lit', async ($, on) => {
+    bareEngine(on)
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+    expect(await picked(pane, 'focus-on')).toBe(true)
+    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/blue/)
+    await pane.press({ key: 'settings-focus-band' })
+    await pane.press({ key: 'focus-theme-rainbow' })
+    expect((await pane.find({ key: 'focus-theme-rainbow' }))?.text).toMatch(/rainbow ✓/)
+    expect((await pane.find({ key: 'tab-settings' }))?.text).toMatch(/◆/)
+    await pane.press({ key: 'focus-band-back' })
+    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/rainbow/)
+    // The pick holds across tabs.
+    await pane.press({ key: 'tab-model' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'settings-focus-band' })
+    expect((await pane.find({ key: 'focus-theme-rainbow' }))?.text).toMatch(/rainbow ✓/)
+    await pane.press({ key: 'focus-band-back' })
+    await pane.press({ key: 'focus-off' })
+    expect(await picked(pane, 'focus-off')).toBe(true)
+  })
+})
+
+describe('the Model page', () => {
+  test('the Model button jumps to the page, closes from it, and opens straight on it', async ($, on) => {
+    bareEngine(on)
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    expect((await pane.find({ key: 'tab-esol' }))?.text).toMatch(/◆/)
+    expect(await pane.find({ key: 'effort:low' })).toBeUndefined()
+    await hint.press({ key: 'esol-model' })
+    expect((await pane.find({ key: 'tab-model' }))?.text).toMatch(/◆/)
+    for (const level of ['low', 'medium', 'high', 'xhigh', 'max']) expect(await pane.find({ key: `effort:${level}` })).toBeDefined()
+    expect((await pane.find({ key: 'start-mode:bypassPermissions' }))?.text).toMatch(/bypass permissions/)
+    await hint.press({ key: 'esol-model' })
+    expect(await pane.find({ key: 'tab-model' })).toBeUndefined()
+    await hint.press({ key: 'esol-model' })
+    expect((await pane.find({ key: 'tab-model' }))?.text).toMatch(/◆/)
+    expect(await pane.find({ key: 'effort:low' })).toBeDefined()
+  })
+
+  test('an effort is a filled chip once picked; max is a rainbow word with a star', async ($, on) => {
+    bareEngine(on)
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-model' })
+    // An effort chip is framed in its own tint, not the accent.
+    const frameOf = async (key: string) => (await pane.find({ key: `${key}-box` }))?.props.borderColor
+    await pane.press({ key: 'effort:high' })
+    expect((await pane.find({ key: 'effort:high' }))?.text).toBe(' high ')
+    expect(await frameOf('effort:high')).toBe(EFFORT_TINT.high)
+    await pane.press({ key: 'effort:max' })
+    expect((await pane.find({ key: 'effort:max' }))?.text).toBe('✦ max')
+    expect(await frameOf('effort:high')).toBeUndefined()
+    expect(await frameOf('effort:max')).toBeDefined()
+  })
+
+  test('a model is switched through /model and marked once the session reports it', async ($, on) => {
+    bareEngine(on)
+    let reported = 'claude-opus-5-5'
+    const asked: string[] = []
+    on('command.run', { command: 'model' }, async (_$, e) => {
+      asked.push(e.args)
+      if (e.args === 'sonnet') reported = 'claude-sonnet-5-5'
+      return { text: `Model is now ${e.args}` }
+    })
+    on('session.model', () => ({ value: reported }))
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-model' })
+    for (const alias of ['fable', 'opus', 'sonnet', 'haiku']) expect(await pane.find({ key: `pick-model:${alias}` })).toBeDefined()
+    expect(await pane.find({ key: 'model-reset' })).toBeDefined()
+    await pane.press({ key: 'pick-model:sonnet' })
+    expect(asked).toEqual(['sonnet'])
+    expect(await picked(pane, 'pick-model:sonnet')).toBe(true)
+  })
+})
+
+describe('kept settings', () => {
+  // What a session's start reads beneath, with the store as it was kept.
+  const keptEngine = (on: On) => {
+    mock.store(on, { focusOn: true, focusTheme: 'rainbow', effort: 'medium' })
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine' }))
+    on('ui.open', () => ({ value: { isPlaced: true as const } }))
+    on('env.get', () => ({ value: '/home/me' }))
+    on('fs.exists', () => ({ value: false }))
+    on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
+    on('session.cwd', () => ({ value: '/home/me/p' }))
+  }
+
+  test('a /clear closes the pane and brings the kept Focus, effort and model back', async ($, on) => {
+    keptEngine(on)
+    const closedIds: string[] = []
+    on('ui.close', (_$, e) => (closedIds.push(e.id), { value: undefined }))
+    on('classic.SessionStart', () => ({}))
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    expect(await picked(pane, 'focus-off')).toBe(true)
+    await $.classic.SessionStart({ source: 'clear' })
+    expect(closedIds).toEqual(['cc-esol'])
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    expect(await picked(pane, 'focus-on')).toBe(true)
+    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/rainbow/)
+    await pane.press({ key: 'tab-model' })
+    expect((await pane.find({ key: 'effort:medium' }))?.text).toBe(' medium ')
+    expect(await picked(pane, 'pick-model:sonnet')).toBe(true)
+  })
+
+  test('with no start event seen, the first prompt brings them back', async ($, on) => {
+    keptEngine(on)
+    on('ui.close', () => ({ value: undefined }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    expect(await picked(pane, 'focus-off')).toBe(true)
+    await $.prompt.submit({ text: 'please check the build again', wait: false, origin: { kind: 'composer' } })
+    expect(await picked(pane, 'focus-on')).toBe(true)
+    expect((await pane.find({ key: 'settings-focus-band' }))?.text).toMatch(/rainbow/)
+    await pane.press({ key: 'tab-model' })
+    expect((await pane.find({ key: 'effort:medium' }))?.text).toBe(' medium ')
+  })
+})
+
+describe('the Theme page', () => {
+  test('lists the kept themes in a window, keeps the footer, and paints the pane with the chosen background', async ($, on) => {
+    mock.store(on)
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine' }))
+    on('ui.open', () => ({ value: { isPlaced: true as const } }))
+    on('ui.close', () => ({ value: undefined }))
+    // Forty themes on disk, each with its own background.
+    const slugs = Array.from({ length: 40 }, (_, i) => `harbor-${String(i).padStart(2, '0')}`)
+    on('env.get', (_$, { name }) => ({ value: name === 'HOME' ? '/home/me' : undefined }))
+    on('fs.exists', () => ({ value: true }))
+    on('fs.list', () => ({ value: slugs.map(slug => ({ name: `${slug}.yaml`, kind: 'file' as const, size: 1, mtimeMs: 0 })) }) as never)
+    on('fs.read', (_$, { path }) => {
+      const file = path.split('/').pop()!
+      return { value: file.endsWith('.yaml') ? themeYaml(file.replace('.yaml', ''), `#0000${file.slice(7, 9)}`) : '{"theme":"custom:cc-esol"}' }
+    })
+    on('fs.write', () => ({ value: undefined }))
+    on('config.list', () => ({ value: [{ key: 'theme', kind: 'enum', value: 'custom:cc-esol', options: ['dark', 'custom:cc-esol'] }] }) as never)
+    on('process.run', () => ({ value: { exitCode: 1, stdout: '', stderr: '' } }) as never)
+    on('classic.SessionStart', () => ({}))
+    await $.classic.SessionStart({ source: 'clear' })
+
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    expect((await pane.find({ key: 'settings-theme' }))?.text).toMatch(/Terminal default|harbor-/)
+    await pane.press({ key: 'settings-theme' })
+    const rows = (await pane.findAll({ type: 'Button' })).filter((b: { key?: string }) => b.key?.startsWith('pick-theme:'))
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.length).toBeLessThan(paneAt.props.scroll.bodyRows)
+    expect(await pane.find({ key: 'esol-close' })).toBeDefined()
+    expect(await pane.find({ key: 'themes-back' })).toBeDefined()
+    expect(await pane.find({ key: 'theme-default' })).toBeDefined()
+    await pane.press({ key: 'pick-theme:harbor-03' })
+    expect((await pane.find({ key: 'pick-theme:harbor-03' }))?.text).toMatch(/harbor-03 ✓/)
+    expect(await pane.drawn()).toMatchObject({ props: { backgroundColor: '#000003' } })
+  })
+})
+
+describe('the Focus band', () => {
+  test("Claude's own todos fill it for free; the turn's end pauses it with steps pending and finishes it when all are done", async ($, on) => {
+    bareEngine(on)
+    const clock = mock.clock(on)
+    on('env.get', () => ({ value: '/home/me' }))
+    on('fs.exists', () => ({ value: false }))
+    on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
+    on('session.cwd', () => ({ value: '/home/me/p' }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    on('tool.call', { tool: 'TodoWrite' }, () => ({ result: 'ok' }))
+    on('turn.complete', (_, e) => ({ text: (e as { text?: string }).text ?? '' }))
+    // A Bash call looks at the band while it runs: the now line is up then.
+    let seen: string | undefined
+    let band: { find: (q: { text: RegExp }) => Promise<{ text: string } | undefined> } | null = null
+    on('tool.call', { tool: 'Bash' }, async () => {
+      seen = (await band?.find({ text: /▸ Bash/ }))?.text
+      return { result: 'ok' }
+    })
+    const { hint, pane } = await mountAll($)
+    const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...bandAt() })
+    band = drawn
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+
+    const submitted = await $.prompt.submit({ text: 'Build the dashboard', wait: false, origin: { kind: 'composer' } })
+    expect(submitted.context ?? []).toHaveLength(0)
+    const todos = (...rows: [string, 'pending' | 'in_progress' | 'completed', string][]) =>
+      $.tool.call({ tool: 'TodoWrite', todos: rows.map(([content, status, activeForm]) => ({ content, status, activeForm })) } as never)
+    await todos(['Plan', 'completed', 'Planning'], ['Fetch data', 'in_progress', 'Fetching data'], ['Draw charts', 'pending', 'Drawing charts'], ['Test', 'completed', 'Testing'])
+    expect(await drawn.find({ text: /Build the dashboard/ })).toBeDefined()
+    expect(await drawn.find({ text: /50%/ })).toBeDefined()
+    expect(await drawn.find({ text: /Step 2 of 4/ })).toBeDefined()
+    expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
+    expect(await drawn.find({ text: /🧠\s+2/ })).toBeDefined()
+    expect(await drawn.find({ text: /Working/ })).toBeDefined()
+    expect(await drawn.find({ text: /^0s$/ })).toBeDefined()
+    expect(await drawn.find({ text: /Next/ })).toBeUndefined()
+    await pane.press({ key: 'settings-icons-nerd' })
+    expect(await drawn.find({ text: /\u{F09D1}\s+2/u })).toBeDefined()
+    expect(await drawn.find({ text: /🧠/ })).toBeUndefined()
+
+    await $.tool.call({ tool: 'Bash', command: 'npm test', description: 'Run the tests' } as never)
+    expect(seen).toMatch(/▸ Bash  Run the tests/)
+    expect(await drawn.find({ text: /▸ Bash/ })).toBeUndefined()
+
+    await clock.advance(5_000)
+    await $.turn.complete({ reason: 'answer', text: 'so far' } as never)
+    expect(await drawn.find({ text: /Paused/ })).toBeDefined()
+    expect(await drawn.find({ text: /^paused$/ })).toBeDefined()
+    expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
+    await clock.advance(10_000)
+    await $.prompt.submit({ text: 'continue', wait: false, origin: { kind: 'composer' } })
+    expect(await drawn.find({ text: /Paused/ })).toBeUndefined()
+    expect(await drawn.find({ text: /Build the dashboard/ })).toBeDefined()
+    expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
+    await todos(['Plan', 'completed', 'Planning'], ['Fetch data', 'completed', 'Fetching data'], ['Draw charts', 'completed', 'Drawing charts'], ['Test', 'completed', 'Testing'])
+    await $.turn.complete({ reason: 'answer', text: 'all done' } as never)
+    expect(await drawn.find({ text: /100%/ })).toBeDefined()
+    expect(await drawn.find({ text: /Done/ })).toBeDefined()
+    await todos(['Plan', 'completed', 'Planning'], ['Fetch data', 'in_progress', 'Fetching data'], ['Draw charts', 'pending', 'Drawing charts'], ['Test', 'completed', 'Testing'], ['Docs', 'pending', 'Docs'], ['Review', 'pending', 'Review'], ['Ship', 'pending', 'Ship'])
+    expect(await drawn.find({ text: /\+1 more · 2 done/ })).toBeDefined()
+    expect(await drawn.find({ text: /Done/ })).toBeUndefined()
+  })
+})

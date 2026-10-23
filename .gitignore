@@ -1,0 +1,10 @@
+# Dependencies and OS litter
+node_modules/
+.DS_Store
+
+# What the engine writes into a loaded plugin: typings and a tsconfig
+.claude-plugin/types/
+plugins/*/.claude-plugin/types/
+
+# Logs of any kind
+*.log
