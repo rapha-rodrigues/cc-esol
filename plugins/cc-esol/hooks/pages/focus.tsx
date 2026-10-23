@@ -1,9 +1,11 @@
 // Focus mode: a progress band above the prompt, fed by what Claude Code
 // already emits (todos, tasks, the approved plan, tool calls), and the tool
-// rows hidden from the transcript while it is on. Costs no tokens.
+// rows hidden from the transcript while it is on. Costs one short cached
+// section of the system prompt while on (the ask for a todo list on a task
+// of several steps) and nothing per prompt.
 
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On, PromptSubmitInput, RenderChildren, RenderInput, Timer } from 'claude-code'
+import type { EngineInterface, On, PromptComposeInput, PromptComposeResult, PromptSubmitInput, RenderChildren, RenderInput, Timer } from 'claude-code'
 
 import type { FocusAction, FocusColors, FocusStep, FocusTask, FocusTheme, Panel } from '../../types'
 import { glyph } from '../icons'
@@ -11,8 +13,11 @@ import {
   actionOf,
   bandColors,
   barRuns,
+  callsText,
   clockText,
+  FOCUS_SECTION_ID,
   FOCUS_THEMES,
+  focusNudge,
   isApprovedPlan,
   isWaiting,
   parsePlanSteps,
@@ -26,6 +31,7 @@ import {
   stepTime,
   stepTint,
   taskElapsed,
+  todoToolAmong,
   toStatus,
 } from '../lib/focus'
 import { rainbow, type Frame } from '../ui/frame'
@@ -211,21 +217,25 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
     return (
       <Box {...frameProps} gap={1}>
         <Box width={titleCells}>{titleText(`${mark} ${t.title}`)}</Box>
-        {bar}
-        {percentText}
+        {t.steps.length > 0 ? bar : <Text dimColor>{`${stepCaption(t)}${callsText(t) === '' ? '' : ` · ${callsText(t)}`}`}</Text>}
+        {t.steps.length > 0 && percentText}
         {foldButton}
       </Box>
     )
 
   const brain = await glyph($, 'brain')
+  // The tool call under way (▸, with its clock) or the last one (✓), until
+  // the turn ends; under the running step, or beside the caption without steps.
   const doing = await read($, action)
-  const nowRow =
+  const nowLine = (indent: number) =>
     doing === null || t.doneAt !== null || paused ? null : (
-      <Box key="focus-now" paddingLeft={5} gap={1}>
-        <Text dimColor wrap="truncate">{`▸ ${doing.tool}${doing.target === '' ? '' : `  ${doing.target}`}`}</Text>
-        <Text dimColor>{clockText(clock - doing.startedAt)}</Text>
+      <Box key="focus-now" paddingLeft={indent} gap={1}>
+        <Text dimColor wrap="truncate">{`${doing.doneAt == null ? '▸' : '✓'} ${doing.tool}${doing.target === '' ? '' : `  ${doing.target}`}`}</Text>
+        {doing.doneAt == null && <Text dimColor>{clockText(clock - doing.startedAt)}</Text>}
       </Box>
     )
+  const nowRow = nowLine(5)
+  const calls = callsText(t)
   const shown = stepsInView(t, STEP_ROWS)
   const runningRow = shown.findIndex(step => step.status === 'in_progress')
   const finished = t.steps.filter(s => s.status === 'completed').length
@@ -265,15 +275,23 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
         {titleText(`${mark} ${t.title}`)}
         <Box flexShrink={0} gap={1}>
           <Text dimColor>{paused ? 'paused' : clockText(taskElapsed(t, clock))}</Text>
+          {calls !== '' && <Text dimColor>{`· ${calls}`}</Text>}
           {foldButton}
         </Box>
       </Box>
-      <Box gap={1}>
-        <Text dimColor>{stepCaption(t).padEnd(14)}</Text>
-        {bar}
-        {percentText}
-      </Box>
-      {shown.length === 0 && nowRow}
+      {t.steps.length > 0 ? (
+        <Box gap={1}>
+          <Text dimColor>{stepCaption(t).padEnd(14)}</Text>
+          {bar}
+          {percentText}
+        </Box>
+      ) : (
+        // No list yet: the caption and the tool call, no bar to fill.
+        <Box gap={1}>
+          <Text dimColor>{stepCaption(t).padEnd(14)}</Text>
+          {nowLine(0)}
+        </Box>
+      )}
       {shown.map(stepRow)}
       {t.steps.length > shown.length && <Text dimColor>{`${brain} +${t.steps.length - shown.length} more · ${finished} done`}</Text>}
     </Box>
@@ -393,16 +411,37 @@ export function registerFocus(on: On) {
     return ran
   }).catch(($, e, next) => next(e))
 
-  // Every tool call of the main loop: the "now" line while it runs.
+  // Every tool call of the main loop: the "now" line while it runs, kept as
+  // the last call once it returns, and counted on the task.
   on('tool.call', async ($, e, next) => {
     if ((e as { agentId?: string }).agentId !== undefined || !(await read($, focusOn))) return next(e)
     const at = await $.clock.now()
     const doing: FocusAction = actionOf(e.tool, e as unknown as Record<string, unknown>, at)
     await update($, action, () => doing)
+    await update($, task, t => (t === null || t.doneAt !== null ? t : { ...t, calls: (t.calls ?? 0) + 1 }))
     try {
       return await next(e)
     } finally {
-      await update($, action, a => (a !== null && a.startedAt === at && a.tool === doing.tool ? null : a))
+      const ended = await $.clock.now()
+      await update($, action, a => (a !== null && a.startedAt === at && a.tool === doing.tool ? { ...a, doneAt: ended } : a))
     }
   }).catch(($, e, next) => next(e))
+}
+
+// Prompts composed for nobody who types: the one-line prompt (--bare), a
+// print session and a teammate's render of its lead's prompt.
+const BANDLESS_TRAITS: ReadonlySet<string> = new Set(['bare', 'print', 'teammate'])
+
+// The one section Focus adds to the system prompt while on, named after the
+// todo tool the request offers; none offered, nothing added. From the
+// prompt.compose hook in register.tsx. A failure leaves the list as composed.
+export async function withFocusSection($: EngineInterface, e: PromptComposeInput, composed: PromptComposeResult): Promise<PromptComposeResult> {
+  try {
+    if (!(await read($, focusOn)) || e.traits.some(t => BANDLESS_TRAITS.has(t))) return composed
+    const tool = todoToolAmong(e.tools)
+    if (tool === null) return composed
+    return { sections: [...composed.sections, { id: FOCUS_SECTION_ID, text: focusNudge(tool), scope: 'session' as const }] }
+  } catch {
+    return composed
+  }
 }

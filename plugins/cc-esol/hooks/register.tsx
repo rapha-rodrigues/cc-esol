@@ -5,11 +5,11 @@
 import type { EngineInterface, On, Register, RenderChildren, RenderInput } from 'claude-code'
 
 import type { Panel } from '../types'
-import { clearEnglishPending, drawEnglishTab, focusEsol, loadEnglish, registerEnglish, registerEnglishTool, scrollEsol, withCoaching } from './english'
+import { clearEnglishPending, drawEnglishTab, focusEsol, loadEnglish, registerEnglish, registerEnglishTool, scrollEsol, withCoaching, withEsolSection } from './english'
 import { loadIcons } from './icons'
 import { phrase, type Phrase } from './lib/i18n'
 import { drawCcslPage, focusCcsl, isCcslPanel, openEditor, scrollCcsl } from './pages/ccsl-editor'
-import { drawFocusBandPage, focusPromptSubmit, focusTurnComplete, loadFocus, registerFocus } from './pages/focus'
+import { drawFocusBandPage, focusPromptSubmit, focusTurnComplete, loadFocus, registerFocus, withFocusSection } from './pages/focus'
 import { drawModeTab, loadModel, readEffort, trackEffort, trackMode, trackModel } from './pages/model'
 import { drawSettingsPage } from './pages/settings'
 import { drawStatusLinePage, loadStatusLine } from './pages/statusline'
@@ -284,6 +284,11 @@ function registerTurns(on: On) {
     await clearEnglishPending($)
     return next(e)
   })
+
+  // The system prompt's tail: the ESOL rules while coaching is on, then the
+  // Focus ask while Focus is on. One hook, since the engine takes one
+  // matcher-less hook per event from a plugin.
+  on('prompt.compose', async ($, e, next) => withFocusSection($, e, await withEsolSection($, e, await next(e)))).catch(($, e, next) => next(e))
 
   // The chosen effort rides on every request of the main loop; the model and
   // the level the engine would have used are noted for the Model page.

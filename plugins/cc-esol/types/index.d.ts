@@ -18,7 +18,8 @@ export type FocusStep = { id: string; text: string; status: StepStatus; startedA
 export type IconSet = 'auto' | 'nerd' | 'unicode'
 
 // waitingAt: the turn ended with steps still pending (the clock pauses);
-// pausedMs: the time spent waiting, left out of the clock.
+// pausedMs: the time spent waiting, left out of the clock; calls: the tool
+// calls made on the main loop so far.
 export type FocusTask = {
   title: string
   startedAt: number
@@ -26,10 +27,12 @@ export type FocusTask = {
   steps: FocusStep[]
   waitingAt?: number | null
   pausedMs?: number
+  calls?: number
 }
 
-// The tool call under way on the main loop, for the band's "now" line.
-export type FocusAction = { tool: string; target: string; startedAt: number }
+// The tool call under way on the main loop, for the band's "now" line; once
+// it returns it stays, stamped done, until the next call replaces it.
+export type FocusAction = { tool: string; target: string; startedAt: number; doneAt?: number | null }
 
 // colors: the theme's eight normal ANSI colors, drawn as its swatch.
 export type ThemeEntry = { slug: string; name: string; colors: string[] }

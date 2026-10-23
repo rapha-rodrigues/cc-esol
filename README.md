@@ -35,7 +35,7 @@ Voice dictation is Claude Code's feature, not this plugin's. It needs a claude.a
 
 **What it costs**
 
-- Focus, Themes, Model, Status line, Voice and Icons cost no tokens: they read what Claude Code already emits and never add to a request.
+- Themes, Model, Status line, Voice and Icons cost no tokens: they read what Claude Code already emits and never add to a request. Focus adds one cached section of under 300 characters to the system prompt while it is On, asking Claude to keep a todo list on a task of several steps, and nothing per prompt; the todo calls Claude then makes are its own, as on any task.
 - ESOL is not free. While coaching is On, the coaching rules (one section of under 2,500 characters) sit in the system prompt of every request, behind the prompt cache, so they are cached rather than resent as history. Each coached prompt carries one extra line of about 140 characters, the gate's measurement. Each correction is one tool call whose arguments are your original, the rewrite and the reasons, and that call stays in the conversation like any other. With coaching Off nothing is added and the tool waits behind ToolSearch.
 - Measured on a fixed script of ten prompts, coaching Off and On, same model and version: see [Measured cost](#measured-cost) below.
 
@@ -53,7 +53,7 @@ The model (Fable, Opus, Sonnet, Haiku, or Claude Code's default), the effort fro
 
 ### Focus
 
-A band above the prompt with the task's title, a clock, a progress bar and the steps, fed by what Claude Code already emits: the todo list, tasks, the plan approved in plan mode and every tool call as a "now" line under the running step. While Focus is On, tool calls and tool results are hidden from the transcript, so the band and Claude's replies are all you see. The turn's end with steps still pending pauses the band; your next prompt resumes it. `[–]` shrinks it to one line. Colors: blue, dark, light, green, pink, rainbow or a custom one.
+A band above the prompt with the task's title, a clock, a progress bar and the steps, fed by what Claude Code already emits: the todo list, tasks, the plan approved in plan mode and every tool call as a "now" line under the running step. While Focus is On, one short section in the system prompt asks Claude to keep a todo list on a task of several steps, so the band has steps to show; without a list it shows the tool call under way, the last one and their count. Tool calls and tool results are hidden from the transcript while Focus is On, so the band and Claude's replies are all you see. The turn's end with steps still pending pauses the band; your next prompt resumes it. `[–]` shrinks it to one line. Colors: blue, dark, light, green, pink, rainbow or a custom one.
 
 <img src="docs/screenshots/focus-band.png" alt="The Focus band above the prompt: the task's title and clock, the progress bar, the steps with their clocks and the running tool call" width="720">
 

@@ -17,13 +17,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   waits behind ToolSearch while coaching is off. The gate ignores prompts written in another script.
 - **Model page.** The model, the effort (low to max) and the permission mode for the session.
 - **Focus.** A band above the prompt with the task's progress, fed by Claude's own todos, tasks, an
-  approved plan and the running tool call, at no token cost; it hides tool calls and tool results
-  while on. Six band colors plus a custom one.
+  approved plan and the tool calls (the one under way, the last one, their count); while on, one
+  short cached section of the system prompt asks Claude to keep a todo list on a task of several
+  steps, and tool calls and tool results are hidden. Six band colors plus a custom one.
 - **Themes.** Terminal color themes from terminalcolors.com, downloaded at runtime and applied to the
   terminal (OSC, or a Windows Terminal profile) and to Claude Code's own colors.
 - **Status line page and Layout Editor.** Install, check and remove ccstatusline; edit its layout
   line by line with a live preview, a dry run before every save and timestamped backups.
 - **Voice button.** Dictation on or off through Claude Code's own `/voice`, beside Model.
-- **Settings.** The pane's language (English, Portuguese), the icon set (Nerd Font, Unicode, auto),
-  the Focus switch and color.
+- **Settings.** The Focus switch with its color as a painted chip, the theme row with the one
+  picked, a ccstatusline chip, and the icon set (Nerd Font, Unicode, auto) last.
 - **`/esol` command** and the corner button that open the pane on a tab.

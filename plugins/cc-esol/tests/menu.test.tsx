@@ -325,4 +325,73 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /\+1 more · 2 done/ })).toBeDefined()
     expect(await drawn.find({ text: /Done/ })).toBeUndefined()
   })
+
+  test('without a list the band shows the tool call under way, keeps the last one and counts them; no bar to fill', async ($, on) => {
+    bareEngine(on)
+    const clock = mock.clock(on)
+    on('env.get', () => ({ value: '/home/me' }))
+    on('fs.exists', () => ({ value: false }))
+    on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
+    on('session.cwd', () => ({ value: '/home/me/p' }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    on('turn.complete', (_, e) => ({ text: (e as { text?: string }).text ?? '' }))
+    let seen: string | undefined
+    let band: { find: (q: { text: RegExp }) => Promise<{ text: string } | undefined> } | null = null
+    on('tool.call', { tool: 'Bash' }, async () => {
+      seen = (await band?.find({ text: /▸ Bash/ }))?.text
+      return { result: 'ok' }
+    })
+    on('tool.call', { tool: 'Edit' }, () => ({ result: 'ok' }))
+    const { hint, pane } = await mountAll($)
+    const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...bandAt() })
+    band = drawn
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+
+    await $.prompt.submit({ text: 'Reorganize the settings tab\nwith chips', wait: false, origin: { kind: 'composer' } })
+    expect(await drawn.find({ text: /Reorganize the settings tab/ })).toBeDefined()
+    expect(await drawn.find({ text: /Working…/ })).toBeDefined()
+    expect(await drawn.find({ text: /%/ })).toBeUndefined()
+    expect(await drawn.find({ text: /call/ })).toBeUndefined()
+
+    await $.tool.call({ tool: 'Bash', command: 'cat -n frame.tsx', description: 'Read the frame' } as never)
+    expect(seen).toMatch(/▸ Bash  Read the frame/)
+    // Returned: the call stays, marked done, and is counted.
+    expect(await drawn.find({ text: /✓ Bash  Read the frame/ })).toBeDefined()
+    expect(await drawn.find({ text: /1 call$/ })).toBeDefined()
+    await $.tool.call({ tool: 'Edit', file_path: '/home/me/p/hooks/pages/settings.tsx', old_string: 'a', new_string: 'b' } as never)
+    expect(await drawn.find({ text: /✓ Edit  settings.tsx/ })).toBeDefined()
+    expect(await drawn.find({ text: /Bash/ })).toBeUndefined()
+    expect(await drawn.find({ text: /2 calls/ })).toBeDefined()
+
+    await clock.advance(3_000)
+    await $.turn.complete({ reason: 'answer', text: 'done' } as never)
+    expect(await drawn.find({ text: /Done/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓ Edit/ })).toBeUndefined()
+  })
+
+  test('while Focus is on, the system prompt asks for a list on a task of several steps, naming the todo tool the request offers', async ($, on) => {
+    bareEngine(on)
+    on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'engine', scope: 'shared' as const }] }))
+    const compose = (tools: string[]) =>
+      $.prompt.compose({ model: 'claude-sonnet-5-5', promptModel: 'claude-sonnet-5-5', surfaces: ['terminal' as const], tools, outputStyle: null, traits: [] })
+    const ids = async (tools: string[]) => (await compose(tools)).sections.map(s => s.id)
+    expect(await ids(['TodoWrite', 'Bash'])).toEqual(['intro'])
+
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+    const withTodo = await compose(['TodoWrite', 'Bash'])
+    expect(withTodo.sections.map(s => s.id)).toEqual(['intro', 'cc-esol:focus'])
+    expect(withTodo.sections[1]!.scope).toBe('session')
+    expect(withTodo.sections[1]!.text).toContain('TodoWrite')
+    expect((await compose(['TaskCreate', 'TaskUpdate'])).sections[1]!.text).toContain('TaskCreate')
+    // No todo tool offered: nothing to ask for.
+    expect(await ids(['Bash', 'Read'])).toEqual(['intro'])
+
+    await pane.press({ key: 'focus-off' })
+    expect(await ids(['TodoWrite'])).toEqual(['intro'])
+  })
 })

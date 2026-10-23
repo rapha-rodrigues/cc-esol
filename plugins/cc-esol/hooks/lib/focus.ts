@@ -1,5 +1,6 @@
 // Focus mode's arithmetic and look: the band's colors, the progress numbers,
-// the step clocks, the approved plan read as steps, the "now" line. Pure.
+// the step clocks, the approved plan read as steps, the "now" line, and the
+// one section the system prompt carries while Focus is on. Pure.
 
 import type { FocusAction, FocusColors, FocusStep, FocusTask, FocusTheme, StepStatus } from '../../types'
 import { blend } from './colors'
@@ -33,6 +34,28 @@ export const clockText = (ms: number): string => {
 }
 
 const doneCount = (t: FocusTask) => t.steps.filter(s => s.status === 'completed').length
+
+// `3 calls`, for the band's header; empty before the first call.
+export const callsText = (t: FocusTask): string => {
+  const n = t.calls ?? 0
+  return n === 0 ? '' : `${n} call${n === 1 ? '' : 's'}`
+}
+
+// The todo tool a request offers the model, the band's step source: the
+// todo list, or the task list where that is what the session has.
+export const TODO_TOOLS = ['TodoWrite', 'TaskCreate'] as const
+export type TodoTool = (typeof TODO_TOOLS)[number]
+export const todoToolAmong = (tools: readonly string[]): TodoTool | null => TODO_TOOLS.find(t => tools.includes(t)) ?? null
+
+export const FOCUS_SECTION_ID = 'cc-esol:focus'
+
+// The one short section the system prompt carries while Focus is on: the
+// band mirrors Claude's own list, so a task of several steps should have
+// one. Cached with the prompt; nothing rides on any prompt.
+export const focusNudge = (tool: TodoTool): string =>
+  tool === 'TodoWrite'
+    ? '# Focus band\nA progress band above the prompt mirrors your todo list. For a task of several steps, open it with TodoWrite listing the steps, keep exactly one in_progress, and mark each completed as it ends. A task of one step needs no list.'
+    : '# Focus band\nA progress band above the prompt mirrors your task list. For a task of several steps, open it with TaskCreate, one task per step, and TaskUpdate each as it starts (in_progress) and as it ends (completed). A task of one step needs no list.'
 
 // Done steps over all steps, in whole percent; a finished task is 100.
 export const progressOf = (t: FocusTask): number => {

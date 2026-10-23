@@ -6,7 +6,7 @@
 // in ./lib/english.ts.
 
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On, PromptSubmitInput, RenderChildren, RenderInput } from 'claude-code'
+import type { EngineInterface, On, PromptComposeInput, PromptComposeResult, PromptSubmitInput, RenderChildren, RenderInput } from 'claude-code'
 
 import type { EnglishLog, EnglishLogEntry, EnglishPending, EsolReview, EsolView } from '../types'
 import {
@@ -531,21 +531,20 @@ export async function clearEnglishPending($: EngineInterface) {
   } catch {}
 }
 
-export function registerEnglish(on: On) {
-  // The rules, as the last section of the system prompt while coaching is
-  // on: behind the cache boundary, on every request, never in the history.
-  // A failure after the engine composed leaves its list as it was.
-  on('prompt.compose', async ($, e, next) => {
-    const composed = await next(e)
-    try {
-      if (!(await read($, englishOn)) || e.traits.some(t => UNCOACHED_TRAITS.has(t))) return composed
-      const { rules } = await contractOf($)
-      return { sections: [...composed.sections, { id: COACHING_SECTION_ID, text: rules, scope: 'session' as const }] }
-    } catch {
-      return composed
-    }
-  }).catch(($, e, next) => next(e))
+// The rules, as a section of the system prompt while coaching is on: behind
+// the cache boundary, on every request, never in the history. From the
+// prompt.compose hook in register.tsx; a failure leaves the list as composed.
+export async function withEsolSection($: EngineInterface, e: PromptComposeInput, composed: PromptComposeResult): Promise<PromptComposeResult> {
+  try {
+    if (!(await read($, englishOn)) || e.traits.some(t => UNCOACHED_TRAITS.has(t))) return composed
+    const { rules } = await contractOf($)
+    return { sections: [...composed.sections, { id: COACHING_SECTION_ID, text: rules, scope: 'session' as const }] }
+  } catch {
+    return composed
+  }
+}
 
+export function registerEnglish(on: On) {
   // The tool's schema sits in the prompt's list while coaching is on and
   // behind ToolSearch while it is off; setEnglishOn asks again on a change.
   on('tool.describe', { tool: 'mcp__cc-esol__english_log' }, async ($, e, next) => ({ ...(await next(e)), isDeferred: !(await read($, englishOn)) }))

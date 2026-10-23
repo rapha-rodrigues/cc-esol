@@ -16,6 +16,8 @@ import {
   stepTint,
   taskElapsed,
   toStatus,
+  focusNudge,
+  todoToolAmong,
 } from '../hooks/lib/focus'
 import type { FocusTask, StepStatus } from '../types'
 
@@ -140,5 +142,20 @@ describe('focus arithmetic', () => {
     expect(taskElapsed(t, 30_000)).toBe(16_000)
     expect(taskElapsed({ ...t, waitingAt: 20_000 }, 30_000)).toBe(6_000)
     expect(taskElapsed({ ...t, doneAt: 25_000 }, 30_000)).toBe(11_000)
+  })
+})
+
+describe('focus nudge', () => {
+  test('names the todo tool the request offers, or nothing, in one short section', async () => {
+    expect(todoToolAmong(['Bash', 'TodoWrite'])).toBe('TodoWrite')
+    expect(todoToolAmong(['TaskCreate', 'TodoWrite'])).toBe('TodoWrite')
+    expect(todoToolAmong(['Bash', 'TaskUpdate', 'TaskCreate'])).toBe('TaskCreate')
+    expect(todoToolAmong(['Bash', 'Read'])).toBe(null)
+    expect(focusNudge('TodoWrite')).toContain('TodoWrite')
+    expect(focusNudge('TaskCreate')).toContain('TaskUpdate')
+    for (const tool of ['TodoWrite', 'TaskCreate'] as const) {
+      expect(focusNudge(tool).startsWith('# Focus band')).toBe(true)
+      expect(focusNudge(tool).length).toBeLessThan(400)
+    }
   })
 })

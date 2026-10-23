@@ -35,7 +35,7 @@ O ditado por voz é um recurso do Claude Code, não deste plugin. Ele exige logi
 
 **Quanto custa**
 
-- Focus, Themes, Model, Status line, Voice e Icons não gastam tokens: eles leem o que o Claude Code já emite e nunca acrescentam nada a uma requisição.
+- Themes, Model, Status line, Voice e Icons não gastam tokens: eles leem o que o Claude Code já emite e nunca acrescentam nada a uma requisição. O Focus acrescenta uma seção cacheada de menos de 300 caracteres ao system prompt enquanto está ligado, pedindo ao Claude que mantenha uma lista de todos numa tarefa de vários passos, e nada por prompt; as chamadas de todo que o Claude faz a partir daí são dele, como em qualquer tarefa.
 - O ESOL não é de graça. Com o coaching ligado, as regras de coaching (uma seção de menos de 2.500 caracteres) ficam no system prompt de cada requisição, atrás do cache de prompt, então são cacheadas em vez de reenviadas como histórico. Cada prompt corrigido carrega uma linha extra de cerca de 140 caracteres, a medição do filtro. Cada correção é uma chamada de ferramenta cujos argumentos são o seu original, a reescrita e os motivos, e essa chamada fica na conversa como qualquer outra. Com o coaching desligado nada é acrescentado e a ferramenta espera atrás do ToolSearch.
 - Medido com um roteiro fixo de dez prompts, coaching desligado e ligado, mesmo modelo e versão: veja [Custo medido](#custo-medido) abaixo.
 
@@ -53,7 +53,7 @@ O modelo (Fable, Opus, Sonnet, Haiku ou o padrão do Claude Code), o esforço de
 
 ### Focus
 
-Uma faixa acima do prompt com o título da tarefa, um relógio, uma barra de progresso e os passos, alimentada pelo que o Claude Code já emite: a lista de todos, as tasks, o plano aprovado no plan mode e cada chamada de ferramenta como uma linha "now" sob o passo em andamento. Com o Focus ligado, chamadas e resultados de ferramentas somem da transcrição, então a faixa e as respostas do Claude são tudo o que você vê. O fim do turno com passos pendentes pausa a faixa; o seu próximo prompt retoma. `[–]` encolhe a faixa para uma linha. Cores: blue, dark, light, green, pink, rainbow ou uma personalizada.
+Uma faixa acima do prompt com o título da tarefa, um relógio, uma barra de progresso e os passos, alimentada pelo que o Claude Code já emite: a lista de todos, as tasks, o plano aprovado no plan mode e cada chamada de ferramenta como uma linha "now" sob o passo em andamento. Com o Focus ligado, uma seção curta no system prompt pede ao Claude que mantenha uma lista de todos numa tarefa de vários passos, para a faixa ter passos a mostrar; sem lista, ela mostra a chamada de ferramenta em andamento, a última e a contagem delas. Chamadas e resultados de ferramentas somem da transcrição com o Focus ligado, então a faixa e as respostas do Claude são tudo o que você vê. O fim do turno com passos pendentes pausa a faixa; o seu próximo prompt retoma. `[–]` encolhe a faixa para uma linha. Cores: blue, dark, light, green, pink, rainbow ou uma personalizada.
 
 <img src="docs/screenshots/focus-band.png" alt="A faixa Focus acima do prompt: o título e o relógio da tarefa, a barra de progresso, os passos com seus relógios e a ferramenta em execução" width="720">
 
