@@ -24,6 +24,10 @@ Every published change bumps the version. The three places that must agree: `ver
    claude plugin marketplace add rapha-rodrigues/cc-esol
    claude plugin install cc-esol@esol
    ```
+   The installed copy is keyed by `version`: `claude plugin update` fetches nothing while the version
+   reads the same, whatever was pushed. So every candidate bumps it (`1.0.0-rc.1`, `-rc.2`, …) and
+   the release sets the final number; a machine that held a candidate under the final number already
+   (a `~/.claude/plugins/cache/esol/cc-esol/<version>` folder) needs that folder moved away first.
 6. **Tag and release.** Commit `Release x.y.z`, tag `vx.y.z`, push with tags, and create the GitHub
    release with the changelog section as its notes.
 7. **Installed copies** update with `claude plugin update cc-esol@esol`.
