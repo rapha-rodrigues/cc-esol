@@ -16,8 +16,12 @@ import {
   stepTint,
   taskElapsed,
   toStatus,
+  feedInView,
   FOCUS_NUDGE,
+  FOCUS_TODO_NOTE,
   wantsList,
+  withCall,
+  withCallDone,
 } from '../hooks/lib/focus'
 import type { FocusTask, StepStatus } from '../types'
 
@@ -154,6 +158,34 @@ describe('focus nudge', () => {
     expect(wantsList('')).toBe(false)
     expect(FOCUS_NUDGE.startsWith('Focus band:')).toBe(true)
     expect(FOCUS_NUDGE).toContain('TodoWrite')
-    expect(FOCUS_NUDGE.length).toBeLessThan(300)
+    expect(FOCUS_NUDGE).toContain('more than two tool calls')
+    expect(FOCUS_NUDGE.length).toBeLessThan(320)
+    // The note on the todo tools says the same, and names TaskUpdate for the task list.
+    for (const tool of ['TodoWrite', 'TaskCreate'] as const) {
+      expect(FOCUS_TODO_NOTE(tool).startsWith('\n\nFocus band:')).toBe(true)
+      expect(FOCUS_TODO_NOTE(tool)).toContain('more than two tool calls')
+      expect(FOCUS_TODO_NOTE(tool).length).toBeLessThan(320)
+    }
+    expect(FOCUS_TODO_NOTE('TaskCreate')).toContain('TaskUpdate')
+    expect(FOCUS_TODO_NOTE('TodoWrite')).not.toContain('TaskUpdate')
+  })
+
+  test('the feed keeps the last four calls, oldest first, and stamps one done by its id', async () => {
+    const call = (id: number) => ({ id, tool: 'Bash', target: `c${id}`, startedAt: id })
+    let feed = withCall([], call(1))
+    for (const id of [2, 3, 4, 5]) feed = withCall(feed, call(id))
+    expect(feed.map(a => a.id)).toEqual([2, 3, 4, 5])
+    feed = withCallDone(feed, 4, 40)
+    expect(feed.find(a => a.id === 4)?.doneAt).toBe(40)
+    expect(feed.find(a => a.id === 5)?.doneAt).toBeUndefined()
+    expect(withCallDone(feed, 9, 1)).toEqual(feed)
+    // A slow call under way is not pushed out by quick ones that came after
+    // it: the oldest done one goes first, and the view shows running ones first.
+    let slow = [call(1)]
+    for (const id of [2, 3, 4, 5, 6]) slow = withCallDone(withCall(slow, call(id)), id, id * 10)
+    expect(slow.map(a => a.id)).toEqual([1, 4, 5, 6])
+    expect(feedInView(slow, 2).map(a => a.id)).toEqual([1, 6])
+    expect(feedInView(slow, 4).map(a => a.id)).toEqual([1, 4, 5, 6])
+    expect(feedInView([call(7), call(8), call(9)], 2).map(a => a.id)).toEqual([8, 9])
   })
 })

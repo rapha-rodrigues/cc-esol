@@ -89,6 +89,14 @@ describe('terminal themes', () => {
     expect(p.bright[7]).toBe('#ffffff')
     expect(readWarpTheme('name: nothing here\n')).toBe(null)
     expect(readWarpTheme(HARBOR.replace('    blue: "#4f8fc9"\n', ''))).toBe(null)
+    // A color is #rrggbb or the theme is refused: nothing a page serves can
+    // smuggle a control sequence into the terminal through an OSC color.
+    expect(readWarpTheme(HARBOR.replace('background: "#101820"', 'background: "#101820\u0007\u001b]52;c;aGk=\u0007"'))).toBe(null)
+    expect(readWarpTheme(HARBOR.replace('background: "#101820"', 'background: "red"'))).toBe(null)
+    expect(readWarpTheme(HARBOR.replace('    red: "#d9534f"', '    red: "d9534f"'))).toBe(null)
+    expect(readWarpTheme(HARBOR.replace('cursor: "#f2e9d8"', 'cursor: "#f2e9d8;1"'))).toBe(null)
+    expect(readWarpTheme(HARBOR.replace('background: "#101820"', 'background: "#10AB20"'))!.background).toBe('#10ab20')
+    expect(readWarpTheme(HARBOR.replace('name: Night Harbor', 'name: Night\u001b[31m Harbor'))!.name).toBe('Night[31m Harbor')
     // Without an accent, the magenta stands in; without a cursor, the foreground.
     const bare = readWarpTheme(HARBOR.replace('accent: "#5ec4d6"\n', '').replace('cursor: "#f2e9d8"\n', ''))!
     expect(bare.accent).toBe('#b388eb')

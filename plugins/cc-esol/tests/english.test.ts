@@ -3,6 +3,7 @@ import type { On } from 'claude-code'
 
 import {
   appendArgv,
+  appendWinArgv,
   asEntryInput,
   basename,
   classify,
@@ -415,6 +416,67 @@ describe('english hooks', () => {
     await $.prompt.submit({ text: ENGLISH, wait: false, origin: { kind: 'composer' } })
     const failed = (await $.tool.call({ tool: ENGLISH_TOOL, original: ENGLISH, native: 'x', why: [] } as never)) as { result?: unknown }
     expect(String(failed.result)).toMatch(/Could not write the learning log/)
+    // The stamp was given back: a retry is not refused as "nothing pending".
+    const again = (await $.tool.call({ tool: ENGLISH_TOOL, original: ENGLISH, native: 'x', why: [] } as never)) as { result?: unknown }
+    expect(String(again.result)).toMatch(/Could not write the learning log/)
+  })
+
+  test('one entry per prompt even when calls arrive together, and none from a subagent', async ($, on) => {
+    const { runs } = engineBeneath(on, { englishOn: true })
+    const appends = () => runs.filter(argv => argv[0] === 'sh' && (argv[2] ?? '').includes('>>'))
+    await start($)
+    await $.prompt.submit({ text: ENGLISH, wait: false, origin: { kind: 'composer' } })
+    const agent = (await $.tool.call({ tool: ENGLISH_TOOL, agentId: 'a1', original: ENGLISH, native: 'x', why: [] } as never)) as { result?: unknown }
+    expect(String(agent.result)).toMatch(/subagent/)
+    expect(appends()).toHaveLength(0)
+    const call = () => $.tool.call({ tool: ENGLISH_TOOL, original: ENGLISH, native: 'I built an endpoint to fetch the user data', why: ['x'] } as never)
+    const results = (await Promise.all([call(), call(), call()])) as { result?: unknown }[]
+    expect(results.filter(r => String(r.result) === 'Logged.')).toHaveLength(1)
+    expect(results.filter(r => /pending/.test(String(r.result)))).toHaveLength(2)
+    expect(appends()).toHaveLength(1)
+  })
+
+  test('on Windows the entry is appended through cmd from a sibling file, never by rewriting the log', async ($, on) => {
+    mock.clock(on)
+    mock.store(on, { englishOn: true })
+    mock.env(on, { USERPROFILE: 'C:\\Users\\someone', OS: 'Windows_NT' })
+    const writes: { path: string; text: string }[] = []
+    const runs: string[][] = []
+    on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'engine' }))
+    on('ui.open', () => ({ value: { isPlaced: true as const } }))
+    on('ui.close', () => ({ value: undefined }))
+    on('session.start', (_, e) => ({ cwd: e.cwd }))
+    on('session.cwd', () => ({ value: 'C:\\Users\\someone\\my-app' }))
+    on('tool.register', (_, e) => ({ value: { tool: `mcp__${PLUGIN}__${e.name}` } }))
+    on('command.register', (_, e) => ({ value: { command: e.name } }))
+    on('fs.exists', () => ({ value: false }))
+    on('fs.read', () => ({ value: '' }))
+    on('fs.write', (_, e) => {
+      writes.push({ path: e.path, text: e.text })
+      return { value: undefined }
+    })
+    on('process.run', (_, e) => {
+      runs.push([...e.argv])
+      return { value: OK_RUN }
+    })
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    await start($)
+    await $.prompt.submit({ text: ENGLISH, wait: false, origin: { kind: 'composer' } })
+    const logged = (await $.tool.call({ tool: ENGLISH_TOOL, original: ENGLISH, native: 'I built an endpoint to fetch the user data', why: ['x'] } as never)) as { result?: unknown }
+    expect(String(logged.result)).toBe('Logged.')
+    // Matched by the tail: on a POSIX host a C:/ path may come back resolved.
+    const LOG_TAIL = 'Users/someone/.claude/english-learning/learning.md'
+    const entry = writes.find(w => w.path.includes(`${LOG_TAIL}.entry-`))
+    expect(entry).toBeDefined()
+    expect(entry!.text).toContain(`- ORIGINAL: ${ENGLISH}\n`)
+    // The log itself is never written whole.
+    expect(writes.some(w => w.path.endsWith(LOG_TAIL))).toBe(false)
+    const append = runs.find(argv => argv[0] === 'cmd' && (argv[4] ?? '').includes('>>'))
+    expect(append).toBeDefined()
+    expect(append!.slice(0, 4)).toEqual(['cmd', '/d', '/s', '/c'])
+    expect(append![4]).toContain('>> "C:\\Users\\someone\\.claude\\english-learning\\learning.md"')
+    expect(append![4]).toContain('if not exist "C:\\Users\\someone\\.claude\\english-learning" mkdir')
+    expect(appendWinArgv('/x/y.md.entry-1', '/x/y.md')[4]).toBe('if not exist "\\x" mkdir "\\x" & type "\\x\\y.md.entry-1" >> "\\x\\y.md" & del /q "\\x\\y.md.entry-1"')
   })
 
   test('the ESOL tab keeps its settings behind a chip, and Off there stops the coaching', async ($, on) => {

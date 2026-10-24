@@ -42,12 +42,43 @@ export const callsText = (t: FocusTask): string => {
 }
 
 // The one line Focus adds beside a prompt that reads as a task of several
-// steps while on: the band mirrors Claude's own list, so it asks for one.
-// Beside the prompt, not in the system prompt: Claude Code's built-in guard
-// keeps a user's plugin out of the system prompt on a Team or Enterprise
-// login, and a line beside the prompt reaches the model everywhere.
+// steps while on: the band mirrors Claude's own list, so it asks for one,
+// with a threshold the model can apply before it starts. Beside the prompt,
+// not in the system prompt: Claude Code's built-in guard keeps a user's
+// plugin out of the system prompt on a Team or Enterprise login, and a line
+// beside the prompt reaches the model everywhere.
 export const FOCUS_NUDGE =
-  'Focus band: if this task takes several steps, open it with TodoWrite (or TaskCreate where that is what you have) listing them, keep one in_progress and mark each completed as it ends. A task of one step needs no list.'
+  'Focus band: a progress band above the prompt mirrors your todo list. Before your first tool call, if this will take more than two tool calls, write the list with TodoWrite (TaskCreate where that is what you have): one item per step, exactly one in_progress, each marked completed as it ends.'
+
+// What the band adds to the todo tools' own descriptions while Focus is on
+// (tool.describe, cached in the tool list; nothing per prompt): the same ask,
+// read where the model decides whether to use the tool.
+export const FOCUS_TODO_NOTE = (tool: 'TodoWrite' | 'TaskCreate'): string =>
+  `\n\nFocus band: a progress band above the prompt mirrors this list while Focus is on. Open the list before the first tool call of any task that will take more than two tool calls, one item per step; keep exactly one in_progress and mark each completed as soon as it ends${tool === 'TaskCreate' ? ' (TaskUpdate)' : ''}. A task of one step needs no list.`
+
+// The band's feed: the last calls of the main loop in the order they
+// started, at most `cap` kept. A call under way stays whatever comes after
+// it (calls run in parallel); the oldest done one gives way first.
+export const FEED_CAP = 4
+export const withCall = (feed: readonly FocusAction[], call: FocusAction, cap = FEED_CAP): FocusAction[] => {
+  const next = [...feed, call]
+  while (next.length > cap) {
+    const oldestDone = next.findIndex(a => a.doneAt != null)
+    next.splice(oldestDone === -1 ? 0 : oldestDone, 1)
+  }
+  return next
+}
+export const withCallDone = (feed: readonly FocusAction[], id: number, at: number): FocusAction[] =>
+  feed.map(a => (a.id === id ? { ...a, doneAt: at } : a))
+// The `rows` calls the band draws: every one under way first, then the
+// newest done ones, back in the order they started.
+export const feedInView = (feed: readonly FocusAction[], rows: number): FocusAction[] => {
+  const running = feed.filter(a => a.doneAt == null)
+  const done = feed.filter(a => a.doneAt != null)
+  const room = rows - Math.min(rows, running.length)
+  const picked = new Set([...running.slice(-rows), ...(room > 0 ? done.slice(-room) : [])])
+  return feed.filter(a => picked.has(a))
+}
 
 // A prompt long enough to be a task of several steps: twelve words, or more
 // than one line. "yes", "continue" and one-liners get nothing.
@@ -188,7 +219,7 @@ export const parsePlanSteps = (markdown: string): { title: string | null; steps:
 }
 
 // The "now" line's words for a tool call: the tool and what it is on.
-export const actionOf = (tool: string, input: Record<string, unknown>, startedAt: number): FocusAction => {
+export const actionOf = (tool: string, input: Record<string, unknown>, startedAt: number): Omit<FocusAction, 'id'> => {
   const str = (k: string) => (typeof input[k] === 'string' ? (input[k] as string) : '')
   const base = (path: string) => path.split(/[\\/]/).pop() ?? path
   const mcp = tool.match(/^mcp__([^_]+(?:_[^_]+)*)__(.+)$/)

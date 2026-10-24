@@ -1,8 +1,9 @@
 // Focus mode: a progress band above the prompt, fed by what Claude Code
-// already emits (todos, tasks, the approved plan, tool calls), and the tool
-// rows hidden from the transcript while it is on. Costs one short line
-// beside a prompt long enough to be several steps while on (the ask for a
-// todo list), nothing else.
+// already emits (todos, tasks, the approved plan, tool calls as a feed of
+// Claude's own one-line descriptions), and the tool rows hidden from the
+// transcript while it is on. Costs one short line beside a prompt long
+// enough to be several steps while on (the ask for a todo list) and a note
+// on the todo tools' descriptions, cached; nothing else.
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On, PromptSubmitInput, RenderChildren, RenderInput, Timer } from 'claude-code'
@@ -15,8 +16,10 @@ import {
   barRuns,
   callsText,
   clockText,
+  feedInView,
   FOCUS_NUDGE,
   FOCUS_THEMES,
+  FOCUS_TODO_NOTE,
   isApprovedPlan,
   isWaiting,
   parsePlanSteps,
@@ -32,6 +35,8 @@ import {
   taskElapsed,
   toStatus,
   wantsList,
+  withCall,
+  withCallDone,
 } from '../lib/focus'
 import { rainbow, type Frame } from '../ui/frame'
 
@@ -40,14 +45,16 @@ const theme = atom({ plugin: 'cc-esol', key: 'focusTheme' } as const, 'blue')
 const customColors = atom({ plugin: 'cc-esol', key: 'focusCustom' } as const, { bar: '#60a5fa', text: '#e2e8f0', border: '#3b82f6' } satisfies FocusColors)
 const collapsed = atom({ plugin: 'cc-esol', key: 'focusCollapsed' } as const, false)
 const task = atom({ plugin: 'cc-esol', key: 'task' } as const, null)
-const action = atom({ plugin: 'cc-esol', key: 'action' } as const, null)
+const feed = atom({ plugin: 'cc-esol', key: 'feed' } as const, [])
 const now = atom({ plugin: 'cc-esol', key: 'now' } as const, 0)
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
 // How long "Done" stays on the band before it clears.
 const DONE_LINGER_MS = 8000
-// Rows the band gives its steps.
+// Rows the band gives its steps, and its feed of calls: alone, or under the running step.
 const STEP_ROWS = 6
+const FEED_ROWS = 4
+const FEED_ROWS_UNDER_STEP = 2
 
 // Settings ---------------------------------------------------------------------
 
@@ -55,6 +62,8 @@ async function switchFocus($: EngineInterface, on: boolean) {
   await update($, focusOn, () => on)
   await $.store.set('focusOn', on)
   if (!on) await update($, task, () => null)
+  // The todo tools' descriptions carry the band's note only while on.
+  $.ui.invalidate('tool.describe')
 }
 
 async function pickTheme($: EngineInterface, next: FocusTheme) {
@@ -106,7 +115,7 @@ async function openTask($: EngineInterface, title: string) {
   const at = await $.clock.now()
   const opened: FocusTask = { title: title || 'Working', startedAt: at, doneAt: null, steps: [], waitingAt: null, pausedMs: 0 }
   await update($, task, () => opened)
-  await update($, action, () => null)
+  await update($, feed, () => [])
   await update($, now, () => at)
   runClock($)
 }
@@ -115,6 +124,7 @@ async function openTask($: EngineInterface, title: string) {
 async function continueTask($: EngineInterface) {
   const at = await $.clock.now()
   await update($, task, t => (t === null || !isWaiting(t) ? t : { ...t, waitingAt: null, pausedMs: (t.pausedMs ?? 0) + (at - t.waitingAt!) }))
+  await update($, feed, () => [])
   await update($, now, () => at)
   runClock($)
 }
@@ -150,7 +160,7 @@ export async function focusPromptSubmit($: EngineInterface, e: PromptSubmitInput
 // done when every step is or there were none. From the turn.complete hook.
 export async function focusTurnComplete($: EngineInterface) {
   stopClock()
-  await update($, action, () => null)
+  await update($, feed, () => [])
   const underway = await read($, task)
   if (underway === null || underway.doneAt !== null || isWaiting(underway)) return
   const at = await $.clock.now()
@@ -224,18 +234,32 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
     )
 
   const brain = await glyph($, 'brain')
-  // The tool call under way (▸, with its clock) or the last one (✓), until
-  // the turn ends; under the running step, or beside the caption without steps.
-  const doing = await read($, action)
-  const nowLine = (indent: number) =>
-    doing === null || t.doneAt !== null || paused ? null : (
-      <Box key="focus-now" paddingLeft={indent} gap={1}>
-        <Text dimColor wrap="truncate">{`${doing.doneAt == null ? '▸' : '✓'} ${doing.tool}${doing.target === '' ? '' : `  ${doing.target}`}`}</Text>
-        {doing.doneAt == null && <Text dimColor>{clockText(clock - doing.startedAt)}</Text>}
-      </Box>
-    )
-  const nowRow = nowLine(5)
-  const calls = callsText(t)
+  const doneMark = await glyph($, 'done')
+  const runningMark = await glyph($, 'running')
+  // The feed: the last calls of the turn, each as Claude described it, the
+  // ones done dimmed and the one under way in the band's color with its
+  // clock. Under the running step, or in the steps' place without a list;
+  // nothing once the turn is over.
+  const calls = await read($, feed)
+  const feedRows = (indent: number, rows: number): RenderChildren[] =>
+    t.doneAt !== null || paused
+      ? []
+      : feedInView(calls, rows).map(call => {
+          const running = call.doneAt == null
+          return (
+            <Box key={`feed-${call.id}`} paddingLeft={indent} gap={1} justifyContent="space-between">
+              <Text wrap="truncate" dimColor={!running} color={running ? colors.text : undefined}>
+                {`${running ? runningMark : doneMark} `}
+                <Text bold={running}>{call.tool}</Text>
+                {call.target === '' ? '' : `  ${call.target}`}
+              </Text>
+              {running && (
+                <Text dimColor>{clockText(clock - call.startedAt)}</Text>
+              )}
+            </Box>
+          )
+        })
+  const callCount = callsText(t)
   const shown = stepsInView(t, STEP_ROWS)
   const runningRow = shown.findIndex(step => step.status === 'in_progress')
   const finished = t.steps.filter(s => s.status === 'completed').length
@@ -264,7 +288,7 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
             </Box>
           </Box>
         </Box>
-        {i === runningRow && nowRow}
+        {i === runningRow && feedRows(5, FEED_ROWS_UNDER_STEP)}
       </Box>
     )
   }
@@ -275,7 +299,7 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
         {titleText(`${mark} ${t.title}`)}
         <Box flexShrink={0} gap={1}>
           <Text dimColor>{paused ? 'paused' : clockText(taskElapsed(t, clock))}</Text>
-          {calls !== '' && <Text dimColor>{`· ${calls}`}</Text>}
+          {callCount !== '' && <Text dimColor>{`· ${callCount}`}</Text>}
           {foldButton}
         </Box>
       </Box>
@@ -286,12 +310,10 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
           {percentText}
         </Box>
       ) : (
-        // No list yet: the caption and the tool call, no bar to fill.
-        <Box gap={1}>
-          <Text dimColor>{stepCaption(t).padEnd(14)}</Text>
-          {nowLine(0)}
-        </Box>
+        // No list: the caption, then the feed in the steps' place, no bar to fill.
+        <Text dimColor>{stepCaption(t)}</Text>
       )}
+      {t.steps.length === 0 && feedRows(2, FEED_ROWS)}
       {shown.map(stepRow)}
       {t.steps.length > shown.length && <Text dimColor>{`${brain} +${t.steps.length - shown.length} more · ${finished} done`}</Text>}
     </Box>
@@ -370,8 +392,10 @@ export function registerFocus(on: On) {
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => ((await read($, focusOn)) ? $.ui.resolve(e).Box(NOTHING) : next(e)))
   on('ui.render', { component: 'ToolProgress' }, async ($, e, next) => ((await read($, focusOn)) ? $.ui.resolve(e).Box(NOTHING) : next(e)))
 
-  // Claude's todo list, whole, each time it changes.
+  // Claude's todo list, whole, each time it changes. A subagent's list
+  // (e.agentId) is its own, not the band's.
   on('tool.call', { tool: 'TodoWrite' }, async ($, e, next) => {
+    if (isAgentCall(e)) return next(e)
     const steps = stepsFromTodos(e.todos)
     if (steps.length > 0 && (await read($, focusOn))) await landingTask($)
     await replaceSteps($, () => steps)
@@ -391,6 +415,7 @@ export function registerFocus(on: On) {
 
   // Tasks: one step each, created pending, updated or removed by id.
   on('tool.call', { tool: 'TaskCreate' }, async ($, e, next) => {
+    if (isAgentCall(e)) return next(e)
     const ran = await next(e)
     const created = ran.result as { task?: { id?: string } } | undefined
     const id = created?.task?.id
@@ -400,6 +425,7 @@ export function registerFocus(on: On) {
     return ran
   }).catch(($, e, next) => next(e))
   on('tool.call', { tool: 'TaskUpdate' }, async ($, e, next) => {
+    if (isAgentCall(e)) return next(e)
     const ran = await next(e)
     const refused = ran.deny !== undefined || ran.isError === true
     if (refused) return ran
@@ -411,20 +437,39 @@ export function registerFocus(on: On) {
     return ran
   }).catch(($, e, next) => next(e))
 
-  // Every tool call of the main loop: the "now" line while it runs, kept as
-  // the last call once it returns, and counted on the task.
+  // Every tool call of the main loop joins the band's feed while it runs,
+  // stays there done once it returns, and is counted on the task.
   on('tool.call', async ($, e, next) => {
-    if ((e as { agentId?: string }).agentId !== undefined || !(await read($, focusOn))) return next(e)
+    if (isAgentCall(e) || !(await read($, focusOn))) return next(e)
     const at = await $.clock.now()
-    const doing: FocusAction = actionOf(e.tool, e as unknown as Record<string, unknown>, at)
-    await update($, action, () => doing)
+    const call: FocusAction = { id: ++callSeq, ...actionOf(e.tool, e as unknown as Record<string, unknown>, at) }
+    await update($, feed, list => withCall(list, call))
     await update($, task, t => (t === null || t.doneAt !== null ? t : { ...t, calls: (t.calls ?? 0) + 1 }))
     try {
       return await next(e)
     } finally {
       const ended = await $.clock.now()
-      await update($, action, a => (a !== null && a.startedAt === at && a.tool === doing.tool ? { ...a, doneAt: ended } : a))
+      await update($, feed, list => withCallDone(list, call.id, ended))
     }
   }).catch(($, e, next) => next(e))
+
+  // The todo tools' descriptions carry the band's ask while Focus is on:
+  // cached in the tool list, read where the model decides to use them. The
+  // tools are the engine's own, so the answer passes Claude Code's built-in
+  // guard; switchFocus asks again on a change.
+  on('tool.describe', { tool: 'TodoWrite' }, async ($, e, next) => {
+    const described = await next(e)
+    return (await read($, focusOn)) ? { ...described, description: described.description + FOCUS_TODO_NOTE('TodoWrite') } : described
+  })
+  on('tool.describe', { tool: 'TaskCreate' }, async ($, e, next) => {
+    const described = await next(e)
+    return (await read($, focusOn)) ? { ...described, description: described.description + FOCUS_TODO_NOTE('TaskCreate') } : described
+  })
 }
+
+// Numbers the calls of this process, so the feed tells parallel ones apart.
+let callSeq = 0
+
+// A subagent's call carries its agent's id; the main loop's carries none.
+const isAgentCall = (e: unknown): boolean => (e as { agentId?: string }).agentId !== undefined
 

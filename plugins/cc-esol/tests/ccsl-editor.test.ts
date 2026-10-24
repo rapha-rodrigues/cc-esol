@@ -359,6 +359,28 @@ describe('ccstatusline editor page', () => {
     expect(files.get(CONFIG)).toBe(serialize(SAMPLE))
   })
 
+  test('the file edited is the one the command names with --config, a ~ expanded', async ($, on) => {
+    const CUSTOM = `${HOME}/custom/sl.json`
+    const { files, dryRuns } = engineBeneath(on, {
+      settings: { statusLine: { type: 'command', command: 'npx -y ccstatusline@latest --config ~/custom/sl.json', padding: 0 } },
+      config: null,
+      extraFiles: { [CUSTOM]: serialize(SAMPLE) },
+    })
+    await start($)
+    const menu = await open($)
+    expect(await menu.find({ type: 'Text', text: /~\/custom\/sl\.json/ })).toBeDefined()
+    expect((await menu.find({ key: 'ccsl-w:0' }))?.text).toMatch(/1\. Model/)
+    await menu.press({ key: 'ccsl-w:1' })
+    await menu.press({ key: 'ccsl-left' })
+    await menu.press({ key: 'ccsl-widget-back' })
+    await menu.press({ key: 'ccsl-save' })
+    expect(dryRuns).toHaveLength(1)
+    expect(dryRuns[0]!.argv[4]).toMatch(/^\/home\/someone\/custom\/sl\.json\.cc-esol\.candidate-/)
+    expect(files.get(CUSTOM)).toBe(dryRuns[0]!.text)
+    expect(files.get(CUSTOM)).not.toBe(serialize(SAMPLE))
+    expect(files.has(CONFIG)).toBe(false)
+  })
+
   test('Save dry-runs the candidate through the adapter, backs the file up, replaces it in one step and keeps what it does not edit', async ($, on) => {
     const { files, dryRuns, copies, removed, runs } = engineBeneath(on, { config: serialize(SAMPLE) })
     await start($)

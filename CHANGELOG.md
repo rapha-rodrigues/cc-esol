@@ -19,9 +19,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   another script.
 - **Model page.** The model, the effort (low to max) and the permission mode for the session.
 - **Focus.** A band above the prompt with the task's progress, fed by Claude's own todos, tasks, an
-  approved plan and the tool calls (the one under way, the last one, their count); while on, a
-  prompt long enough to be several steps carries one short line asking Claude to keep a todo list,
-  and tool calls and tool results are hidden. Six band colors plus a custom one.
+  approved plan and a feed of the last four tool calls as Claude described them (the ones done
+  dimmed, the one under way with its clock, their count in the header); while on, a prompt long
+  enough to be several steps carries one short line asking Claude to open a todo list, the todo
+  tools' descriptions carry the same note, and tool calls and tool results are hidden. Six band
+  colors plus a custom one.
 - **Themes.** Terminal color themes from terminalcolors.com, downloaded at runtime and applied to the
   terminal (OSC, or a Windows Terminal profile) and to Claude Code's own colors.
 - **Status line page and Layout Editor.** Install, check and remove ccstatusline; edit its layout

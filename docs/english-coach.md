@@ -101,7 +101,7 @@ The log is only worth what you extract from it. Suggested cadence: one weekly `/
 
   The next entry recreates the file. Archived files are ignored by the review, which only reads the current log.
 - **The log is not backed up by the mod.** Point `ENGLISH_COACH_LOG` at a synced folder if losing the history would bother you.
-- Entries are appended with `sh` (`>>`), so two sessions logging at once never overwrite each other and an interrupted write never damages earlier entries. On Windows there is no `sh`: the mod reads and rewrites the file, which is not atomic.
+- Entries are appended with `sh` (`>>`), so two sessions logging at once never overwrite each other and an interrupted write never damages earlier entries. On Windows there is no `sh`: the entry goes to a sibling file and `cmd` appends it with `>>`, so the log is never read back or rewritten there either.
 
 ## Troubleshooting
 

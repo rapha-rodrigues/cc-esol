@@ -30,9 +30,9 @@ export type FocusTask = {
   calls?: number
 }
 
-// The tool call under way on the main loop, for the band's "now" line; once
-// it returns it stays, stamped done, until the next call replaces it.
-export type FocusAction = { tool: string; target: string; startedAt: number; doneAt?: number | null }
+// One tool call of the main loop, as the band's feed lists it: running
+// until stamped done. `id` tells two calls apart, started in parallel or not.
+export type FocusAction = { id: number; tool: string; target: string; startedAt: number; doneAt?: number | null }
 
 // colors: the theme's eight normal ANSI colors, drawn as its swatch.
 export type ThemeEntry = { slug: string; name: string; colors: string[] }
@@ -107,8 +107,9 @@ export type EsolView = 'list' | 'settings' | 'language' | 'review'
 export type EsolReview = { at: string; model: string; text: string }
 
 // A coached prompt waiting for its english_log call, stamped when the
-// coaching block was attached.
-export type EnglishPending = { ts: string; project: string }
+// marker was attached; `claim` is the id of the call writing it, so one
+// write lands per prompt whatever calls arrive together.
+export type EnglishPending = { ts: string; project: string; claim?: number }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -119,7 +120,7 @@ declare module 'claude-code' {
       focusCustom: FocusColors
       focusCollapsed: boolean
       task: FocusTask | null
-      action: FocusAction | null
+      feed: FocusAction[]
       now: number
       themes: ThemeEntry[]
       themeName: string | null

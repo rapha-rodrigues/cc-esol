@@ -278,6 +278,7 @@ describe('the Focus band', () => {
     on('session.cwd', () => ({ value: '/home/me/p' }))
     on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
     on('tool.call', { tool: 'TodoWrite' }, () => ({ result: 'ok' }))
+    on('ui.invalidate', () => ({ value: undefined }))
     on('turn.complete', (_, e) => ({ text: (e as { text?: string }).text ?? '' }))
     // A Bash call looks at the band while it runs: the now line is up then.
     let seen: string | undefined
@@ -309,10 +310,22 @@ describe('the Focus band', () => {
     await pane.press({ key: 'settings-icons-nerd' })
     expect(await drawn.find({ text: /\u{F09D1}\s+2/u })).toBeDefined()
     expect(await drawn.find({ text: /🧠/ })).toBeUndefined()
+    // Back to Unicode: the feed's marks follow the icon set too.
+    await pane.press({ key: 'settings-icons-unicode' })
 
     await $.tool.call({ tool: 'Bash', command: 'npm test', description: 'Run the tests' } as never)
     expect(seen).toMatch(/▸ Bash  Run the tests/)
+    // Returned: it stays under the running step, done.
     expect(await drawn.find({ text: /▸ Bash/ })).toBeUndefined()
+    expect(await drawn.find({ text: /✓ Bash  Run the tests/ })).toBeDefined()
+
+    // A subagent's own list, calls and end are not the band's.
+    await $.tool.call({ tool: 'TodoWrite', agentId: 'a1', todos: [{ content: 'Agent step', status: 'in_progress', activeForm: 'Agent stepping' }] } as never)
+    expect(await drawn.find({ text: /Agent step/ })).toBeUndefined()
+    expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
+    await $.turn.complete({ reason: 'answer', text: 'agent done', agentId: 'a1' } as never)
+    expect(await drawn.find({ text: /Paused/ })).toBeUndefined()
+    expect(await drawn.find({ text: /✓ Bash  Run the tests/ })).toBeDefined()
 
     await clock.advance(5_000)
     await $.turn.complete({ reason: 'answer', text: 'so far' } as never)
@@ -369,13 +382,52 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /1 call$/ })).toBeDefined()
     await $.tool.call({ tool: 'Edit', file_path: '/home/me/p/hooks/pages/settings.tsx', old_string: 'a', new_string: 'b' } as never)
     expect(await drawn.find({ text: /✓ Edit  settings.tsx/ })).toBeDefined()
-    expect(await drawn.find({ text: /Bash/ })).toBeUndefined()
+    // The feed keeps the earlier call too, oldest first, four at most.
+    expect(await drawn.find({ text: /✓ Bash  Read the frame/ })).toBeDefined()
     expect(await drawn.find({ text: /2 calls/ })).toBeDefined()
+    for (const name of ['one.ts', 'two.ts', 'three.ts']) await $.tool.call({ tool: 'Edit', file_path: `/home/me/p/${name}`, old_string: 'a', new_string: 'b' } as never)
+    expect(await drawn.find({ text: /Read the frame/ })).toBeUndefined()
+    expect(await drawn.find({ text: /✓ Edit  settings.tsx/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓ Edit  three.ts/ })).toBeDefined()
+    expect(await drawn.find({ text: /5 calls/ })).toBeDefined()
+    // The Nerd Font set draws its own marks.
+    await pane.press({ key: 'settings-icons-nerd' })
+    expect(await drawn.find({ text: /\uF00C Edit  three.ts/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓/ })).toBeUndefined()
+    await pane.press({ key: 'settings-icons-unicode' })
 
     await clock.advance(3_000)
     await $.turn.complete({ reason: 'answer', text: 'done' } as never)
     expect(await drawn.find({ text: /Done/ })).toBeDefined()
     expect(await drawn.find({ text: /✓ Edit/ })).toBeUndefined()
+  })
+
+  test("while Focus is on, the todo tools' descriptions carry the band's ask; off, they are the engine's own", async ($, on) => {
+    bareEngine(on)
+    const invalidated: string[] = []
+    on('ui.invalidate', (_, e) => {
+      invalidated.push(e.event)
+      return { value: undefined }
+    })
+    on('tool.describe', (_, e) => ({ description: e.description }))
+    const describe = (tool: string) => $.tool.describe({ tool, description: `${tool} as the engine wrote it`, provider: { plugin: 'engine', tier: 'core' } })
+    expect((await describe('TodoWrite')).description).toBe('TodoWrite as the engine wrote it')
+
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+    expect(invalidated.filter(e => e === 'tool.describe')).toHaveLength(1)
+    const todo = (await describe('TodoWrite')).description
+    expect(todo.startsWith('TodoWrite as the engine wrote it')).toBe(true)
+    expect(todo).toContain('Focus band')
+    expect(todo).toContain('more than two tool calls')
+    expect((await describe('TaskCreate')).description).toContain('TaskUpdate')
+    expect((await describe('Bash')).description).toBe('Bash as the engine wrote it')
+
+    await pane.press({ key: 'focus-off' })
+    expect(invalidated.filter(e => e === 'tool.describe')).toHaveLength(2)
+    expect((await describe('TodoWrite')).description).toBe('TodoWrite as the engine wrote it')
   })
 
   test('while Focus is on, a prompt long enough to be several steps carries the ask for a list; a short one, nothing', async ($, on) => {

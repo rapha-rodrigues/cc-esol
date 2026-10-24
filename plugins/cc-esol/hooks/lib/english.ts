@@ -346,3 +346,13 @@ export const appendArgv = (entry: string, path: string): string[] => [
   entry,
   path,
 ]
+
+// Windows: the entry, written to `tmp` beside the log, appended with cmd's
+// `>>` (the log opened for appending, as sh's is) and the sibling removed.
+// The log's folder is made first. Paths travel as arguments; cmd quotes
+// each one that needs it.
+export const appendWinArgv = (tmp: string, path: string): string[] => {
+  const win = (p: string) => p.split('/').join('\\')
+  const dir = win(path).replace(/\\[^\\]*$/, '')
+  return ['cmd', '/d', '/s', '/c', `if not exist "${dir}" mkdir "${dir}" & type "${win(tmp)}" >> "${win(path)}" & del /q "${win(tmp)}"`]
+}

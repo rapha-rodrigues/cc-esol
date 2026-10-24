@@ -88,8 +88,14 @@ const fileOf = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 export const isCcslPanel = (panel: Panel): panel is CcslPanel => panel.startsWith('ccsl-')
 
+// The file the editor works on: the one the status line command names
+// with --config (a leading ~ expanded), else ccstatusline's default.
 async function configPath($: EngineInterface) {
-  return `${await homeDir($)}/${CONFIG_PATH}`
+  const home = await homeDir($)
+  const named = (await adapterOf($))?.configPath ?? null
+  if (named === null) return `${home}/${CONFIG_PATH}`
+  const slashed = named.split('\\').join('/')
+  return slashed === '~' || slashed.startsWith('~/') ? `${home}${slashed.slice(1)}` : slashed
 }
 
 // The file as it is now: its text, or null when it is not there.

@@ -276,9 +276,13 @@ function registerTurns(on: On) {
     return next(await focusPromptSubmit($, await withCoaching($, e)))
   }).catch(($, e, next) => next(e))
 
+  // The main loop's end: a subagent's end (e.agentId) is heard too and is
+  // not the turn's.
   on('turn.complete', async ($, e, next) => {
-    await focusTurnComplete($)
-    await clearEnglishPending($)
+    if ((e as { agentId?: string }).agentId === undefined) {
+      await focusTurnComplete($)
+      await clearEnglishPending($)
+    }
     return next(e)
   })
 

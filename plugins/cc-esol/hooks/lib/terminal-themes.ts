@@ -39,23 +39,34 @@ export const readYamlMap = (text: string): Map<string, string> => {
   return out
 }
 
-// A palette from a theme file; null when a color the theme needs is missing.
+// The one form a color takes here. Every color goes on to the terminal as
+// an OSC sequence and into the Claude Code theme and the Windows Terminal
+// scheme, so a downloaded value is held to it: nothing else, no control
+// characters, reaches the terminal.
+export const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
+const hex = (value: string | undefined): string | null => (value !== undefined && HEX_COLOR.test(value) ? value.toLowerCase() : null)
+
+// A palette from a theme file; null when a color the theme needs is missing
+// or is not a `#rrggbb` color.
 export const readWarpTheme = (yaml: string): Palette | null => {
   const map = readYamlMap(yaml)
-  const row = (group: 'normal' | 'bright') => ANSI_NAMES.map(name => map.get(`terminal_colors.${group}.${name}`) ?? '')
+  const row = (group: 'normal' | 'bright') => ANSI_NAMES.map(name => hex(map.get(`terminal_colors.${group}.${name}`)))
   const normal = row('normal')
   const bright = row('bright')
-  const background = map.get('background')
-  const foreground = map.get('foreground')
-  if (!background || !foreground || normal.includes('') || bright.includes('')) return null
+  const background = hex(map.get('background'))
+  const foreground = hex(map.get('foreground'))
+  if (background === null || foreground === null || normal.includes(null) || bright.includes(null)) return null
+  const cursor = map.get('cursor')
+  const accent = map.get('accent')
+  if ((cursor !== undefined && hex(cursor) === null) || (accent !== undefined && hex(accent) === null)) return null
   return {
-    name: map.get('name') ?? 'Unnamed',
+    name: (map.get('name') ?? 'Unnamed').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 80),
     background,
     foreground,
-    cursor: map.get('cursor') ?? foreground,
-    accent: map.get('accent') ?? normal[5] ?? foreground,
-    normal,
-    bright,
+    cursor: hex(cursor) ?? foreground,
+    accent: hex(accent) ?? normal[5]! ?? foreground,
+    normal: normal as string[],
+    bright: bright as string[],
   }
 }
 

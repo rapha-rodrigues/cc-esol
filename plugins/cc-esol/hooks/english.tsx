@@ -11,6 +11,7 @@ import type { EngineInterface, On, PromptSubmitInput, RenderChildren, RenderInpu
 import type { EnglishLog, EnglishLogEntry, EnglishPending, EsolReview, EsolView } from '../types'
 import {
   appendArgv,
+  appendWinArgv,
   asEntryInput,
   basename,
   classify,
@@ -145,9 +146,12 @@ const isReview = (v: unknown): v is EsolReview => {
 
 async function appendEntry($: EngineInterface, entry: string, path: string) {
   if (await isWindows($)) {
-    // No sh: a read and a whole-file write, not atomic (documented).
-    const old = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
-    await $.fs.write(path, old + entry)
+    // No sh: the entry goes to a sibling file and cmd appends it (`>>`
+    // opens the log for appending, never rewriting what is there).
+    const tmp = `${path}.entry-${Math.random().toString(36).slice(2, 8)}`
+    await $.fs.write(tmp, entry)
+    const ran = await $.process.run(appendWinArgv(tmp, path), { timeoutMs: 10_000 })
+    if (ran.exitCode !== 0) throw new Error(ran.stderr.trim() || `cmd exited with ${ran.exitCode}`)
     return
   }
   const ran = await $.process.run(appendArgv(entry, path))
@@ -499,7 +503,13 @@ export async function registerEnglishTool($: EngineInterface) {
   try {
     const { toolDescription } = await contractOf($)
     await $.tool.register({ name: ENGLISH_TOOL_NAME, description: toolDescription, inputSchema: ENGLISH_TOOL_SCHEMA })
-  } catch {}
+  } catch (error) {
+    // A refusal (an organization's policy on tool names, say) would leave
+    // the coach silently mute: say so once.
+    try {
+      $.ui.toast(`cc-esol: the english_log tool could not be registered, so coaching cannot log: ${error instanceof Error ? error.message : String(error)}`)
+    } catch {}
+  }
 }
 
 // The prompt as submitted, the gate's marker attached when it is one of the
@@ -529,6 +539,9 @@ export async function clearEnglishPending($: EngineInterface) {
   } catch {}
 }
 
+// Numbers the english_log calls of this process, for the claim.
+let claimSeq = 0
+
 export function registerEnglish(on: On) {
   // The tool's description is the contract's, for this session's language
   // and log; its schema sits in the prompt's list while coaching is on and
@@ -543,18 +556,27 @@ export function registerEnglish(on: On) {
   // The literal, not ENGLISH_TOOL, so `claude plugin validate` reads the matcher.
   on('tool.call', { tool: 'mcp__cc-esol__english_log' }, async ($, e) => {
     if (!(await read($, englishOn))) return { result: 'English coaching is off: nothing logged.' }
-    const pending = await read($, englishPending)
-    if (pending === null) return { result: 'No coached prompt is pending (one entry per coached prompt): nothing logged.' }
+    if ((e as { agentId?: string }).agentId !== undefined) return { result: 'english_log is for the main conversation, not a subagent: nothing logged.' }
     const input = asEntryInput(e)
     if (input === null) return { result: 'Invalid input: original, native and why are required and must not be empty.' }
+    // The claim: one call takes the stamp (update applies in order, again
+    // after a miss), the others find it taken.
+    const claim = ++claimSeq
+    await update($, englishPending, p => (p === null || p.claim !== undefined ? p : { ...p, claim }))
+    const pending = await read($, englishPending)
+    if (pending === null || pending.claim !== claim) {
+      return { result: 'No coached prompt is pending (one entry per coached prompt): nothing logged.' }
+    }
     const path = await logPath($)
-    const entry = { ...pending, ...input }
+    const entry = { ts: pending.ts, project: pending.project, ...input }
     try {
       await appendEntry($, formatEntry(entry), path)
     } catch (error) {
+      // The stamp is given back, so a retry can log.
+      await update($, englishPending, p => (p !== null && p.claim === claim ? { ts: p.ts, project: p.project } : p))
       return { result: `Could not write the learning log at ${path}: ${String(error)}` }
     }
-    await update($, englishPending, () => null)
+    await update($, englishPending, p => (p !== null && p.claim === claim ? null : p))
     const listed: EnglishLogEntry = { ts: entry.ts, project: entry.project, original: entry.original, native: entry.native, why: [...entry.why] }
     await update($, englishLog, log => ({
       path,
