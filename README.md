@@ -35,8 +35,9 @@ Voice dictation is Claude Code's feature, not this plugin's. It needs a claude.a
 
 **What it costs**
 
-- Themes, Model, Status line, Voice and Icons cost no tokens: they read what Claude Code already emits and never add to a request. Focus adds one cached section of under 300 characters to the system prompt while it is On, asking Claude to keep a todo list on a task of several steps, and nothing per prompt; the todo calls Claude then makes are its own, as on any task.
-- ESOL is not free. While coaching is On, the coaching rules (one section of under 2,500 characters) sit in the system prompt of every request, behind the prompt cache, so they are cached rather than resent as history. Each coached prompt carries one extra line of about 140 characters, the gate's measurement. Each correction is one tool call whose arguments are your original, the rewrite and the reasons, and that call stays in the conversation like any other. With coaching Off nothing is added and the tool waits behind ToolSearch.
+- Themes, Model, Status line, Voice and Icons cost no tokens: they read what Claude Code already emits and never add to a request. Focus adds one line of under 250 characters beside a prompt of twelve words or more, or of several lines, while it is On, asking Claude to keep a todo list if the task takes several steps; shorter prompts carry nothing, and the todo calls Claude then makes are its own, as on any task.
+- The plugin never changes Claude Code's system prompt: what it says to Claude rides in its own tool's description and beside your prompts.
+- ESOL is not free. While coaching is On, the coaching rules travel in the description of the plugin's own `english_log` tool (under 4,096 characters with the rest of it), in the cached tool list of every request rather than in the history. Each coached prompt carries one extra line of about 160 characters, the gate's measurement. Each correction is one tool call whose arguments are your original, the rewrite and the reasons, and that call stays in the conversation like any other. With coaching Off nothing is added and the tool waits behind ToolSearch.
 - Measured on a fixed script of ten prompts, coaching Off and On, same model and version: see [Measured cost](#measured-cost) below.
 
 ## The rest of the sidebar
@@ -53,7 +54,7 @@ The model (Fable, Opus, Sonnet, Haiku, or Claude Code's default), the effort fro
 
 ### Focus
 
-A band above the prompt with the task's title, a clock, a progress bar and the steps, fed by what Claude Code already emits: the todo list, tasks, the plan approved in plan mode and every tool call as a "now" line under the running step. While Focus is On, one short section in the system prompt asks Claude to keep a todo list on a task of several steps, so the band has steps to show; without a list it shows the tool call under way, the last one and their count. Tool calls and tool results are hidden from the transcript while Focus is On, so the band and Claude's replies are all you see. The turn's end with steps still pending pauses the band; your next prompt resumes it. `[–]` shrinks it to one line. Colors: blue, dark, light, green, pink, rainbow or a custom one.
+A band above the prompt with the task's title, a clock, a progress bar and the steps, fed by what Claude Code already emits: the todo list, tasks, the plan approved in plan mode and every tool call as a "now" line under the running step. While Focus is On, a prompt long enough to be several steps carries one short line asking Claude to keep a todo list, so the band has steps to show; without a list it shows the tool call under way, the last one and their count. Tool calls and tool results are hidden from the transcript while Focus is On, so the band and Claude's replies are all you see. The turn's end with steps still pending pauses the band; your next prompt resumes it. `[–]` shrinks it to one line. Colors: blue, dark, light, green, pink, rainbow or a custom one.
 
 <img src="docs/screenshots/focus-band.png" alt="The Focus band above the prompt: the task's title and clock, the progress bar, the steps with their clocks and the running tool call" width="720">
 
@@ -126,6 +127,7 @@ Pending: the ten-prompt script in [docs/releasing.md](docs/releasing.md) is run 
 - **An English prompt was not coached.** Too few of its words are everyday English (short, jargon-heavy prompts). Lower the cutoff or the minimum words in Settings.
 - **The Voice button says `/voice` is unavailable.** Sign in with a claude.ai account (`/login`); dictation does not work with an API key or a third-party provider.
 - **The log keeps growing.** Nothing prunes it. Archive it with a rename; the next entry recreates the file. Past 4 MiB the tab stops previewing it and Review asks you to archive first.
+- **A notice says a cc-esol hook was skipped.** On a Team or Enterprise login, Claude Code's built-in guard (`cc-plugin-sec-default`) keeps user plugins away from the system prompt and from the classic hook events, and says so in the transcript. cc-esol is built on what passes, so coaching, the band and the rest work as described; the one thing lost there is the Model page's "Running in" row, which never learns the current permission mode (shift+tab still switches it). Nothing to configure.
 - More in [docs/english-coach.md](docs/english-coach.md) and [docs/statusline.md](docs/statusline.md).
 
 ## Develop

@@ -5,11 +5,11 @@
 import type { EngineInterface, On, Register, RenderChildren, RenderInput } from 'claude-code'
 
 import type { Panel } from '../types'
-import { clearEnglishPending, drawEnglishTab, focusEsol, loadEnglish, registerEnglish, registerEnglishTool, scrollEsol, withCoaching, withEsolSection } from './english'
+import { clearEnglishPending, drawEnglishTab, focusEsol, loadEnglish, registerEnglish, registerEnglishTool, scrollEsol, withCoaching } from './english'
 import { loadIcons } from './icons'
 import { phrase, type Phrase } from './lib/i18n'
 import { drawCcslPage, focusCcsl, isCcslPanel, openEditor, scrollCcsl } from './pages/ccsl-editor'
-import { drawFocusBandPage, focusPromptSubmit, focusTurnComplete, loadFocus, registerFocus, withFocusSection } from './pages/focus'
+import { drawFocusBandPage, focusPromptSubmit, focusTurnComplete, loadFocus, registerFocus } from './pages/focus'
 import { drawModeTab, loadModel, readEffort, trackEffort, trackMode, trackModel } from './pages/model'
 import { drawSettingsPage } from './pages/settings'
 import { drawStatusLinePage, loadStatusLine } from './pages/statusline'
@@ -193,20 +193,17 @@ function registerLifecycle(on: On) {
     return started
   })
 
-  // A /clear starts a new session with no session.start: the kept settings
-  // come back here, and the pane, which outlives the session, is closed.
-  on('classic.SessionStart', async ($, e, next) => {
-    const ran = await next(e)
-    if (e.source === 'clear') {
+  // A /clear ends the session and starts one with no session.start: the
+  // pane, which outlives the session, is closed here, and the kept settings
+  // come back at the first prompt (restore). Seen at session.end, which
+  // reaches a user's mod on every account; the classic SessionStart event
+  // does not on a Team or Enterprise login, where Claude Code's built-in
+  // guard keeps the classic events from user mods.
+  on('session.end', async ($, e, next) => {
+    if (e.reason === 'clear') {
       await $.ui.close({ id: PANE }).catch(() => {})
       await setMenu($, null)
-      await restore($)
-    }
-    return ran
-  }).catch(($, e, next) => next(e))
-
-  on('session.end', async ($, e, next) => {
-    if (e.reason !== 'clear') await themesSessionEnd($)
+    } else await themesSessionEnd($)
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -274,7 +271,7 @@ function registerTurns(on: On) {
   // The prompt as submitted: the ESOL coaching, then Focus's task.
   on('prompt.submit', async ($, e, next) => {
     // After a /clear every session value is at its default: restore here
-    // when the classic SessionStart hook did not run.
+    // (a /clear starts a session without a session.start).
     if (!(await readRestored($))) await restore($)
     return next(await focusPromptSubmit($, await withCoaching($, e)))
   }).catch(($, e, next) => next(e))
@@ -284,11 +281,6 @@ function registerTurns(on: On) {
     await clearEnglishPending($)
     return next(e)
   })
-
-  // The system prompt's tail: the ESOL rules while coaching is on, then the
-  // Focus ask while Focus is on. One hook, since the engine takes one
-  // matcher-less hook per event from a plugin.
-  on('prompt.compose', async ($, e, next) => withFocusSection($, e, await withEsolSection($, e, await next(e)))).catch(($, e, next) => next(e))
 
   // The chosen effort rides on every request of the main loop; the model and
   // the level the engine would have used are noted for the Model page.
@@ -302,7 +294,10 @@ function registerTurns(on: On) {
     return yield* next(level !== null && e.effort !== undefined ? { ...e, effort: level } : e)
   })
 
-  // The running permission mode, as the engine tells its hooks.
+  // The running permission mode, as the engine tells its classic hooks. On a
+  // Team or Enterprise login the built-in guard keeps these events from user
+  // mods: the Model page then says the mode is shown after the next prompt
+  // and never gets to; shift+tab still switches it.
   on('classic.UserPromptSubmit', async ($, e, next) => {
     const { permission_mode: mode } = e
     await trackMode($, mode)

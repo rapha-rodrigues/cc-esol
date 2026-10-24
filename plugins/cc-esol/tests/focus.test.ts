@@ -16,8 +16,8 @@ import {
   stepTint,
   taskElapsed,
   toStatus,
-  focusNudge,
-  todoToolAmong,
+  FOCUS_NUDGE,
+  wantsList,
 } from '../hooks/lib/focus'
 import type { FocusTask, StepStatus } from '../types'
 
@@ -146,16 +146,14 @@ describe('focus arithmetic', () => {
 })
 
 describe('focus nudge', () => {
-  test('names the todo tool the request offers, or nothing, in one short section', async () => {
-    expect(todoToolAmong(['Bash', 'TodoWrite'])).toBe('TodoWrite')
-    expect(todoToolAmong(['TaskCreate', 'TodoWrite'])).toBe('TodoWrite')
-    expect(todoToolAmong(['Bash', 'TaskUpdate', 'TaskCreate'])).toBe('TaskCreate')
-    expect(todoToolAmong(['Bash', 'Read'])).toBe(null)
-    expect(focusNudge('TodoWrite')).toContain('TodoWrite')
-    expect(focusNudge('TaskCreate')).toContain('TaskUpdate')
-    for (const tool of ['TodoWrite', 'TaskCreate'] as const) {
-      expect(focusNudge(tool).startsWith('# Focus band')).toBe(true)
-      expect(focusNudge(tool).length).toBeLessThan(400)
-    }
+  test('rides only beside a prompt long enough to be several steps', async () => {
+    expect(wantsList('continue')).toBe(false)
+    expect(wantsList('please fix the failing test in the auth module')).toBe(false)
+    expect(wantsList('Reorganize the settings tab: move the icons last, paint the focus chip and add a chip for the status line')).toBe(true)
+    expect(wantsList('Two things:\n1. fix it\n2. test it')).toBe(true)
+    expect(wantsList('')).toBe(false)
+    expect(FOCUS_NUDGE.startsWith('Focus band:')).toBe(true)
+    expect(FOCUS_NUDGE).toContain('TodoWrite')
+    expect(FOCUS_NUDGE.length).toBeLessThan(300)
   })
 })

@@ -1,11 +1,11 @@
 // Focus mode: a progress band above the prompt, fed by what Claude Code
 // already emits (todos, tasks, the approved plan, tool calls), and the tool
-// rows hidden from the transcript while it is on. Costs one short cached
-// section of the system prompt while on (the ask for a todo list on a task
-// of several steps) and nothing per prompt.
+// rows hidden from the transcript while it is on. Costs one short line
+// beside a prompt long enough to be several steps while on (the ask for a
+// todo list), nothing else.
 
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On, PromptComposeInput, PromptComposeResult, PromptSubmitInput, RenderChildren, RenderInput, Timer } from 'claude-code'
+import type { EngineInterface, On, PromptSubmitInput, RenderChildren, RenderInput, Timer } from 'claude-code'
 
 import type { FocusAction, FocusColors, FocusStep, FocusTask, FocusTheme, Panel } from '../../types'
 import { glyph } from '../icons'
@@ -15,9 +15,8 @@ import {
   barRuns,
   callsText,
   clockText,
-  FOCUS_SECTION_ID,
+  FOCUS_NUDGE,
   FOCUS_THEMES,
-  focusNudge,
   isApprovedPlan,
   isWaiting,
   parsePlanSteps,
@@ -31,8 +30,8 @@ import {
   stepTime,
   stepTint,
   taskElapsed,
-  todoToolAmong,
   toStatus,
+  wantsList,
 } from '../lib/focus'
 import { rainbow, type Frame } from '../ui/frame'
 
@@ -133,8 +132,9 @@ async function replaceSteps($: EngineInterface, make: (prev: FocusStep[]) => Foc
   await update($, task, t => (t === null ? t : { ...t, ...(title === undefined ? {} : { title }), steps: stampSteps(t.steps, make(t.steps), at, t.startedAt) }))
 }
 
-// Each prompt typed continues the waiting task or opens a new one. Nothing
-// is added to the prompt. From the prompt.submit hook in register.tsx.
+// Each prompt typed continues the waiting task or opens a new one, and a
+// prompt long enough to be several steps carries the ask for a list. From
+// the prompt.submit hook in register.tsx.
 export async function focusPromptSubmit($: EngineInterface, e: PromptSubmitInput): Promise<PromptSubmitInput> {
   const typed = e.text.trim()
   if (e.origin.kind !== 'composer' || typed === '' || typed.startsWith('/')) return e
@@ -143,7 +143,7 @@ export async function focusPromptSubmit($: EngineInterface, e: PromptSubmitInput
   const underway = await read($, task)
   if (underway !== null && underway.doneAt === null && isWaiting(underway)) await continueTask($)
   else await openTask($, promptTitle)
-  return e
+  return wantsList(typed) ? { ...e, context: [...(e.context ?? []), FOCUS_NUDGE] } : e
 }
 
 // The turn's end: waiting when steps are still pending (the clock pauses),
@@ -428,20 +428,3 @@ export function registerFocus(on: On) {
   }).catch(($, e, next) => next(e))
 }
 
-// Prompts composed for nobody who types: the one-line prompt (--bare), a
-// print session and a teammate's render of its lead's prompt.
-const BANDLESS_TRAITS: ReadonlySet<string> = new Set(['bare', 'print', 'teammate'])
-
-// The one section Focus adds to the system prompt while on, named after the
-// todo tool the request offers; none offered, nothing added. From the
-// prompt.compose hook in register.tsx. A failure leaves the list as composed.
-export async function withFocusSection($: EngineInterface, e: PromptComposeInput, composed: PromptComposeResult): Promise<PromptComposeResult> {
-  try {
-    if (!(await read($, focusOn)) || e.traits.some(t => BANDLESS_TRAITS.has(t))) return composed
-    const tool = todoToolAmong(e.tools)
-    if (tool === null) return composed
-    return { sections: [...composed.sections, { id: FOCUS_SECTION_ID, text: focusNudge(tool), scope: 'session' as const }] }
-  } catch {
-    return composed
-  }
-}

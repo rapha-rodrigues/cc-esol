@@ -191,13 +191,18 @@ describe('kept settings', () => {
     keptEngine(on)
     const closedIds: string[] = []
     on('ui.close', (_$, e) => (closedIds.push(e.id), { value: undefined }))
-    on('classic.SessionStart', () => ({}))
+    on('session.end', () => ({ sessionId: 's1' }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
     const { hint, pane } = await mountAll($)
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
     expect(await picked(pane, 'focus-off')).toBe(true)
-    await $.classic.SessionStart({ source: 'clear' })
+    // A /clear is seen at session.end (the classic SessionStart event does
+    // not reach a user's mod everywhere): the pane closes, and the first
+    // prompt of the fresh session brings the kept settings back.
+    await $.session.end({ reason: 'clear' } as never)
     expect(closedIds).toEqual(['cc-esol'])
+    await $.prompt.submit({ text: 'please check the build again', wait: false, origin: { kind: 'composer' } })
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
     expect(await picked(pane, 'focus-on')).toBe(true)
@@ -241,8 +246,9 @@ describe('the Theme page', () => {
     on('fs.write', () => ({ value: undefined }))
     on('config.list', () => ({ value: [{ key: 'theme', kind: 'enum', value: 'custom:cc-esol', options: ['dark', 'custom:cc-esol'] }] }) as never)
     on('process.run', () => ({ value: { exitCode: 1, stdout: '', stderr: '' } }) as never)
-    on('classic.SessionStart', () => ({}))
-    await $.classic.SessionStart({ source: 'clear' })
+    // No start event seen: the first prompt refills the session from the store and the disk.
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    await $.prompt.submit({ text: 'please check the build again', wait: false, origin: { kind: 'composer' } })
 
     const { hint, pane } = await mountAll($)
     await hint.press({ key: 'esol-toggle' })
@@ -371,27 +377,27 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /✓ Edit/ })).toBeUndefined()
   })
 
-  test('while Focus is on, the system prompt asks for a list on a task of several steps, naming the todo tool the request offers', async ($, on) => {
+  test('while Focus is on, a prompt long enough to be several steps carries the ask for a list; a short one, nothing', async ($, on) => {
     bareEngine(on)
-    on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'engine', scope: 'shared' as const }] }))
-    const compose = (tools: string[]) =>
-      $.prompt.compose({ model: 'claude-sonnet-5-5', promptModel: 'claude-sonnet-5-5', surfaces: ['terminal' as const], tools, outputStyle: null, traits: [] })
-    const ids = async (tools: string[]) => (await compose(tools)).sections.map(s => s.id)
-    expect(await ids(['TodoWrite', 'Bash'])).toEqual(['intro'])
+    mock.clock(on)
+    on('env.get', () => ({ value: '/home/me' }))
+    on('fs.exists', () => ({ value: false }))
+    on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
+    on('session.cwd', () => ({ value: '/home/me/p' }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    const LONG = 'Reorganize the settings tab: move the icons last, paint the focus chip, and add a chip for the status line'
+    const off = await $.prompt.submit({ text: LONG, wait: false, origin: { kind: 'composer' } })
+    expect(off.context ?? []).toHaveLength(0)
 
     const { hint, pane } = await mountAll($)
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
     await pane.press({ key: 'focus-on' })
-    const withTodo = await compose(['TodoWrite', 'Bash'])
-    expect(withTodo.sections.map(s => s.id)).toEqual(['intro', 'cc-esol:focus'])
-    expect(withTodo.sections[1]!.scope).toBe('session')
-    expect(withTodo.sections[1]!.text).toContain('TodoWrite')
-    expect((await compose(['TaskCreate', 'TaskUpdate'])).sections[1]!.text).toContain('TaskCreate')
-    // No todo tool offered: nothing to ask for.
-    expect(await ids(['Bash', 'Read'])).toEqual(['intro'])
-
-    await pane.press({ key: 'focus-off' })
-    expect(await ids(['TodoWrite'])).toEqual(['intro'])
+    const long = await $.prompt.submit({ text: LONG, wait: false, origin: { kind: 'composer' } })
+    expect(long.context?.some(c => c.startsWith('Focus band:') && c.includes('TodoWrite'))).toBe(true)
+    const lines = await $.prompt.submit({ text: 'Two things:\n1. fix it\n2. test it', wait: false, origin: { kind: 'composer' } })
+    expect(lines.context?.some(c => c.startsWith('Focus band:'))).toBe(true)
+    const short = await $.prompt.submit({ text: 'continue', wait: false, origin: { kind: 'composer' } })
+    expect(short.context ?? []).toHaveLength(0)
   })
 })

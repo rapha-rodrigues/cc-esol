@@ -6,7 +6,6 @@ import {
   asEntryInput,
   basename,
   classify,
-  COACHING_SECTION_ID,
   coachingContract,
   ENGLISH_TOOL,
   MARKER_PREFIX,
@@ -111,7 +110,7 @@ describe('english gate', () => {
 
   test('the contract: the rules, the marker and the tool description agree', async () => {
     const { rules, marker, toolDescription } = coachingContract('Spanish', LOG)
-    expect(rules.startsWith('# ESOL coaching')).toBe(true)
+    expect(rules.startsWith('ESOL coaching rules')).toBe(true)
     expect(rules).toContain('a Spanish speaker training American English')
     expect(rules).toContain('written in Spanish or any other language or script, skip logging')
     expect(rules).toContain('do not announce that you are logging')
@@ -121,8 +120,11 @@ describe('english gate', () => {
     expect(line.startsWith(`${MARKER_PREFIX} 5 of 9 words are English (cutoff 40%)`)).toBe(true)
     expect(line.includes('\n')).toBe(false)
     expect(line.length).toBeLessThan(200)
-    // The rules and the marker name the tool (the description is the tool's own);
-    // the rules and the tool name the log; the marker and the tool name the rules.
+    // The description carries the rules whole and stays under what the model
+    // is sent of a description; the rules and the marker name the tool; the
+    // rules and the tool name the log; the marker and the tool name the rules.
+    expect(toolDescription).toContain(rules)
+    expect(toolDescription.length).toBeLessThan(4096)
     for (const text of [rules, line]) expect(text).toContain(ENGLISH_TOOL)
     for (const text of [rules, toolDescription]) expect(text).toContain(LOG)
     for (const text of [rules, toolDescription]) expect(text).toContain(MARKER_PREFIX)
@@ -243,6 +245,7 @@ describe('english log', () => {
 const engineBeneath = (on: On, entries: Record<string, unknown> = {}, log?: string) => {
   const runs: string[][] = []
   const invalidated: string[] = []
+  const registered: string[] = []
   mock.clock(on)
   mock.store(on, entries)
   mock.env(on, { HOME })
@@ -253,7 +256,10 @@ const engineBeneath = (on: On, entries: Record<string, unknown> = {}, log?: stri
   on('ui.close', () => ({ value: undefined }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.cwd', () => ({ value: PROJECT_DIR }))
-  on('tool.register', (_, e) => ({ value: { tool: `mcp__${PLUGIN}__${e.name}` } }))
+  on('tool.register', (_, e) => {
+    registered.push(e.description)
+    return { value: { tool: `mcp__${PLUGIN}__${e.name}` } }
+  })
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('fs.exists', (_, e) => ({ value: log !== undefined && e.path === LOG }))
   on('process.run', (_, e) => {
@@ -261,29 +267,18 @@ const engineBeneath = (on: On, entries: Record<string, unknown> = {}, log?: stri
     return { value: OK_RUN }
   })
   on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
-  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'engine', scope: 'shared' as const }] }))
   on('tool.describe', (_, e) => ({ description: e.description, isDeferred: true }))
   on('ui.invalidate', (_, e) => {
     invalidated.push(e.event)
     return { value: undefined }
   })
-  return { runs, invalidated }
+  return { runs, invalidated, registered }
 }
 
 const describeTool = ($: { tool: { describe: (input: { tool: string; description: string; provider: { plugin: string; tier: 'user' } }) => Promise<{ description: string; isDeferred?: boolean }> } }) =>
   $.tool.describe({ tool: ENGLISH_TOOL, description: 'as registered', provider: { plugin: PLUGIN, tier: 'user' } })
 
 const isMarker = (c: string) => c.startsWith(MARKER_PREFIX)
-
-// The facts a system prompt is composed from, as the engine resolves them.
-const composeInput = (traits: ('bare' | 'lean' | 'sdk-preset' | 'teammate' | 'analysis' | 'print' | 'skills' | 'send-user-message')[] = []) => ({
-  model: 'claude-sonnet-5-5',
-  promptModel: 'claude-sonnet-5-5',
-  surfaces: ['terminal' as const],
-  tools: [ENGLISH_TOOL],
-  outputStyle: null,
-  traits,
-})
 
 const start = ($: { session: { start: (args: { cwd: string; surface: 'terminal'; isInteractive: true }) => Promise<unknown> } }) =>
   $.session.start({ cwd: PROJECT_DIR, surface: 'terminal', isInteractive: true })
@@ -328,34 +323,18 @@ describe('english hooks', () => {
     expect(result.context ?? []).toHaveLength(0)
   })
 
-  test('the rules are a session section of the system prompt only while coaching is on', async ($, on) => {
-    engineBeneath(on, { englishOn: true, englishNative: 'Spanish' })
+  test("the rules travel in the tool's description, for the language chosen, registered and described alike", async ($, on) => {
+    const { registered } = engineBeneath(on, { englishOn: true, englishNative: 'Spanish' })
     await start($)
-    const { sections } = await $.prompt.compose(composeInput())
-    expect(sections.map(s => s.id)).toEqual(['intro', COACHING_SECTION_ID])
-    const rules = sections[sections.length - 1]!
-    expect(rules.scope).toBe('session')
-    expect(rules.text).toContain('a Spanish speaker training American English')
-    expect(rules.text).toContain(ENGLISH_TOOL)
-    expect(rules.text).toContain(LOG)
-
-    // Not for a prompt nobody types into: --bare, a print session, a teammate.
-    for (const trait of ['bare', 'print', 'teammate'] as const) {
-      const composed = await $.prompt.compose(composeInput([trait]))
-      expect(composed.sections.map(s => s.id)).toEqual(['intro'])
-    }
-    // The /context measurement sees it.
-    expect((await $.prompt.compose(composeInput(['analysis']))).sections.map(s => s.id)).toEqual(['intro', COACHING_SECTION_ID])
-
-    const corner = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...hint })
-    const menu = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...pane })
-    await corner.press({ key: 'esol-toggle' })
-    await menu.press({ key: 'tab-esol' })
-    await menu.press({ key: 'esol-settings' })
-    await menu.press({ key: 'english-off' })
-    expect((await $.prompt.compose(composeInput())).sections.map(s => s.id)).toEqual(['intro'])
-    await menu.press({ key: 'english-on' })
-    expect((await $.prompt.compose(composeInput())).sections.map(s => s.id)).toEqual(['intro', COACHING_SECTION_ID])
+    expect(registered).toHaveLength(1)
+    expect(registered[0]).toContain('ESOL coaching rules')
+    expect(registered[0]).toContain('a Spanish speaker training American English')
+    expect(registered[0]).toContain(LOG)
+    const described = await describeTool($)
+    expect(described.description).toBe(registered[0])
+    expect(described.isDeferred).toBe(false)
+    // The composed system prompt is left alone: nothing of ours rides there.
+    expect(registered[0]!.length).toBeLessThan(4096)
   })
 
   test('english_log waits behind ToolSearch while coaching is off, and each switch asks for it again', async ($, on) => {
@@ -374,7 +353,7 @@ describe('english hooks', () => {
     expect(invalidated.filter(e => e === 'tool.describe')).toHaveLength(1)
     const listed = await describeTool($)
     expect(listed.isDeferred).toBe(false)
-    expect(listed.description).toBe('as registered')
+    expect(listed.description).toContain('ESOL coaching rules')
     // On, a coached prompt's entry lands.
     await $.prompt.submit({ text: ENGLISH, wait: false, origin: { kind: 'composer' } })
     const logged = (await $.tool.call({ tool: ENGLISH_TOOL, original: ENGLISH, native: 'I built an endpoint to fetch the user data', why: ['"builded" > "built"'] } as never)) as { result?: unknown }
@@ -475,7 +454,7 @@ describe('english hooks', () => {
   })
 
   test('the language is chosen from a list, Other typed in, and reaches the rules', async ($, on) => {
-    engineBeneath(on, { englishOn: true })
+    const { registered } = engineBeneath(on, { englishOn: true })
     await start($)
     const corner = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...hint })
     const menu = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...pane })
@@ -486,8 +465,10 @@ describe('english hooks', () => {
     expect(await menu.find({ key: 'english-lang-spanish' })).toBeDefined()
     expect(await menu.find({ key: 'english-lang-name' })).toBeUndefined()
     await menu.press({ key: 'english-lang-spanish' })
-    const rulesText = async () => (await $.prompt.compose(composeInput())).sections.find(s => s.id === COACHING_SECTION_ID)?.text ?? ''
+    const rulesText = async () => (await describeTool($)).description
     expect(await rulesText()).toContain('a Spanish speaker')
+    // A new language registers the tool again, with the rules for it.
+    expect(registered[registered.length - 1]).toContain('a Spanish speaker')
 
     await menu.press({ key: 'english-lang-other' })
     expect(await menu.find({ key: 'english-lang-name' })).toBeDefined()

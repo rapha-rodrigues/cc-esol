@@ -1,6 +1,6 @@
 // Focus mode's arithmetic and look: the band's colors, the progress numbers,
 // the step clocks, the approved plan read as steps, the "now" line, and the
-// one section the system prompt carries while Focus is on. Pure.
+// one line that asks for a list beside a long prompt while Focus is on. Pure.
 
 import type { FocusAction, FocusColors, FocusStep, FocusTask, FocusTheme, StepStatus } from '../../types'
 import { blend } from './colors'
@@ -41,21 +41,21 @@ export const callsText = (t: FocusTask): string => {
   return n === 0 ? '' : `${n} call${n === 1 ? '' : 's'}`
 }
 
-// The todo tool a request offers the model, the band's step source: the
-// todo list, or the task list where that is what the session has.
-export const TODO_TOOLS = ['TodoWrite', 'TaskCreate'] as const
-export type TodoTool = (typeof TODO_TOOLS)[number]
-export const todoToolAmong = (tools: readonly string[]): TodoTool | null => TODO_TOOLS.find(t => tools.includes(t)) ?? null
+// The one line Focus adds beside a prompt that reads as a task of several
+// steps while on: the band mirrors Claude's own list, so it asks for one.
+// Beside the prompt, not in the system prompt: Claude Code's built-in guard
+// keeps a user's plugin out of the system prompt on a Team or Enterprise
+// login, and a line beside the prompt reaches the model everywhere.
+export const FOCUS_NUDGE =
+  'Focus band: if this task takes several steps, open it with TodoWrite (or TaskCreate where that is what you have) listing them, keep one in_progress and mark each completed as it ends. A task of one step needs no list.'
 
-export const FOCUS_SECTION_ID = 'cc-esol:focus'
-
-// The one short section the system prompt carries while Focus is on: the
-// band mirrors Claude's own list, so a task of several steps should have
-// one. Cached with the prompt; nothing rides on any prompt.
-export const focusNudge = (tool: TodoTool): string =>
-  tool === 'TodoWrite'
-    ? '# Focus band\nA progress band above the prompt mirrors your todo list. For a task of several steps, open it with TodoWrite listing the steps, keep exactly one in_progress, and mark each completed as it ends. A task of one step needs no list.'
-    : '# Focus band\nA progress band above the prompt mirrors your task list. For a task of several steps, open it with TaskCreate, one task per step, and TaskUpdate each as it starts (in_progress) and as it ends (completed). A task of one step needs no list.'
+// A prompt long enough to be a task of several steps: twelve words, or more
+// than one line. "yes", "continue" and one-liners get nothing.
+export const wantsList = (text: string): boolean => {
+  const trimmed = text.trim()
+  if (trimmed === '') return false
+  return trimmed.split(/\r?\n/).filter(l => l.trim() !== '').length > 1 || trimmed.split(/\s+/).length >= 12
+}
 
 // Done steps over all steps, in whole percent; a finished task is 100.
 export const progressOf = (t: FocusTask): number => {

@@ -12,14 +12,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   a local learning log. A list of the latest corrections, a Review that reads the log and writes an
   analysis inside the tab, and settings for the language (twenty listed, or typed in), the cutoff and
   the minimum length.
-- **Coaching cost contract.** The rules live in the system prompt while coaching is on (cached, never
-  in the history); each coached prompt carries one line, the gate's measure; the `english_log` tool
-  waits behind ToolSearch while coaching is off. The gate ignores prompts written in another script.
+- **Coaching cost contract.** The rules travel in the `english_log` tool's own description while
+  coaching is on (in the cached tool list, never in the history, and past Claude Code's built-in
+  guard on Team and Enterprise logins); each coached prompt carries one line, the gate's measure;
+  the tool waits behind ToolSearch while coaching is off. The gate ignores prompts written in
+  another script.
 - **Model page.** The model, the effort (low to max) and the permission mode for the session.
 - **Focus.** A band above the prompt with the task's progress, fed by Claude's own todos, tasks, an
-  approved plan and the tool calls (the one under way, the last one, their count); while on, one
-  short cached section of the system prompt asks Claude to keep a todo list on a task of several
-  steps, and tool calls and tool results are hidden. Six band colors plus a custom one.
+  approved plan and the tool calls (the one under way, the last one, their count); while on, a
+  prompt long enough to be several steps carries one short line asking Claude to keep a todo list,
+  and tool calls and tool results are hidden. Six band colors plus a custom one.
 - **Themes.** Terminal color themes from terminalcolors.com, downloaded at runtime and applied to the
   terminal (OSC, or a Windows Terminal profile) and to Claude Code's own colors.
 - **Status line page and Layout Editor.** Install, check and remove ccstatusline; edit its layout

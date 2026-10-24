@@ -1,12 +1,12 @@
 // The English tab: passive American English coaching for someone whose first
 // language is not English. Every prompt in English runs as usual; the rules
-// sit in the system prompt while coaching is on, a one-line marker rides
-// beside each prompt the gate passed, and Claude logs a nativized correction
-// through the english_log tool. The gate, the contract and the formats are
-// in ./lib/english.ts.
+// travel in the english_log tool's description while coaching is on, a
+// one-line marker rides beside each prompt the gate passed, and Claude logs
+// a nativized correction through that tool. The gate, the contract and the
+// formats are in ./lib/english.ts.
 
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On, PromptComposeInput, PromptComposeResult, PromptSubmitInput, RenderChildren, RenderInput } from 'claude-code'
+import type { EngineInterface, On, PromptSubmitInput, RenderChildren, RenderInput } from 'claude-code'
 
 import type { EnglishLog, EnglishLogEntry, EnglishPending, EsolReview, EsolView } from '../types'
 import {
@@ -14,7 +14,6 @@ import {
   asEntryInput,
   basename,
   classify,
-  COACHING_SECTION_ID,
   coachingContract,
   DEFAULT_EN_CUTOFF,
   DEFAULT_MIN_WORDS,
@@ -88,6 +87,9 @@ async function setNative($: EngineInterface, name: string) {
   const native = name.trim() === '' ? DEFAULT_NATIVE : name.trim()
   await update($, englishNative, () => native)
   await $.store.set('englishNative', native)
+  // The rules name the language: the tool is registered again with them.
+  await registerEnglishTool($)
+  $.ui.invalidate('tool.describe')
 }
 
 async function setMinWords($: EngineInterface, minWords: number) {
@@ -519,10 +521,6 @@ export async function withCoaching($: EngineInterface, e: PromptSubmitInput): Pr
   }
 }
 
-// Prompts composed for nobody who types: the one-line prompt (--bare), a
-// print session (no composer, so nothing is ever coached) and a teammate's
-// render of its lead's prompt.
-const UNCOACHED_TRAITS: ReadonlySet<string> = new Set(['bare', 'print', 'teammate'])
 
 // A coached prompt whose turn ended without a write stays unlogged.
 export async function clearEnglishPending($: EngineInterface) {
@@ -531,23 +529,14 @@ export async function clearEnglishPending($: EngineInterface) {
   } catch {}
 }
 
-// The rules, as a section of the system prompt while coaching is on: behind
-// the cache boundary, on every request, never in the history. From the
-// prompt.compose hook in register.tsx; a failure leaves the list as composed.
-export async function withEsolSection($: EngineInterface, e: PromptComposeInput, composed: PromptComposeResult): Promise<PromptComposeResult> {
-  try {
-    if (!(await read($, englishOn)) || e.traits.some(t => UNCOACHED_TRAITS.has(t))) return composed
-    const { rules } = await contractOf($)
-    return { sections: [...composed.sections, { id: COACHING_SECTION_ID, text: rules, scope: 'session' as const }] }
-  } catch {
-    return composed
-  }
-}
-
 export function registerEnglish(on: On) {
-  // The tool's schema sits in the prompt's list while coaching is on and
-  // behind ToolSearch while it is off; setEnglishOn asks again on a change.
-  on('tool.describe', { tool: 'mcp__cc-esol__english_log' }, async ($, e, next) => ({ ...(await next(e)), isDeferred: !(await read($, englishOn)) }))
+  // The tool's description is the contract's, for this session's language
+  // and log; its schema sits in the prompt's list while coaching is on and
+  // behind ToolSearch while it is off. setEnglishOn and setNative ask again.
+  on('tool.describe', { tool: 'mcp__cc-esol__english_log' }, async ($, e, next) => {
+    const described = await next(e)
+    return { ...described, description: (await contractOf($)).toolDescription, isDeferred: !(await read($, englishOn)) }
+  })
 
   // One entry per coached prompt, only while coaching is on: the pending
   // stamp is set when the block was attached and consumed by the first write.

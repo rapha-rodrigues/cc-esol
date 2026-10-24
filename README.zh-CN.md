@@ -37,8 +37,9 @@ ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向�
 
 **它的成本**
 
-- Themes、Model、Status line、Voice 和 Icons 不消耗 token：它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。Focus 开启时会往 system prompt 里加入一个不到 300 个字符的缓存段落，请 Claude 在多步骤任务中维护一份 todo 列表，每个 prompt 本身不增加任何内容；Claude 之后发出的 todo 调用是它自己的，和任何任务中一样。
-- ESOL 不是免费的。coaching 开启时，教练规则（一个不到 2,500 个字符的段落）位于每次请求的 system prompt 中、prompt 缓存边界之后，因此会被缓存，而不是作为历史重复发送。每个被纠正的 prompt 多带一行约 140 个字符，即门槛的测量结果。每次纠正是一次工具调用，参数是你的原文、改写和原因，这次调用会像其他调用一样留在对话里。coaching 关闭时什么都不会添加，工具退到 ToolSearch 之后等待。
+- Themes、Model、Status line、Voice 和 Icons 不消耗 token：它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。Focus 开启时，会在十二个词以上或多行的 prompt 旁边附上一行不到 250 个字符的文字，请 Claude 在任务有多个步骤时维护一份 todo 列表；更短的 prompt 不附加任何内容，Claude 之后发出的 todo 调用是它自己的，和任何任务中一样。
+- 插件从不修改 Claude Code 的 system prompt：它对 Claude 说的话随自己工具的描述以及你的 prompt 一起传送。
+- ESOL 不是免费的。coaching 开启时，教练规则随插件自己的 `english_log` 工具的描述一起传送（连同描述其余部分不到 4,096 个字符），位于每次请求被缓存的工具列表中，而不在历史里。每个被纠正的 prompt 多带一行约 160 个字符，即门槛的测量结果。每次纠正是一次工具调用，参数是你的原文、改写和原因，这次调用会像其他调用一样留在对话里。coaching 关闭时什么都不会添加，工具退到 ToolSearch 之后等待。
 - 用固定的十条 prompt 脚本在 coaching 关闭和开启、相同模型和版本下测量：见下文的 [实测成本](#实测成本)。
 
 ## 侧边栏的其余部分
@@ -55,7 +56,7 @@ ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向�
 
 ### Focus
 
-prompt 上方的一条横幅，显示任务标题、计时、进度条和步骤，数据来自 Claude Code 本来就会产生的信息：todo 列表、task、plan mode 中批准的计划，以及每次工具调用，在运行中的步骤下方显示为一行 "now"。Focus 开启时，system prompt 里的一个短段落会请 Claude 在多步骤任务中维护 todo 列表，横幅因此有步骤可显示；没有列表时，它显示正在进行的工具调用、上一次调用和调用次数。Focus 开启时工具调用和工具结果从对话记录中隐藏，你看到的只有横幅和 Claude 的回复。回合结束时若仍有待办步骤，横幅会暂停；你的下一个 prompt 让它继续。`[–]` 把它收成一行。颜色：blue、dark、light、green、pink、rainbow，或自定义。
+prompt 上方的一条横幅，显示任务标题、计时、进度条和步骤，数据来自 Claude Code 本来就会产生的信息：todo 列表、task、plan mode 中批准的计划，以及每次工具调用，在运行中的步骤下方显示为一行 "now"。Focus 开启时，足够长、可能包含多个步骤的 prompt 会附带一行简短文字，请 Claude 维护 todo 列表，横幅因此有步骤可显示；没有列表时，它显示正在进行的工具调用、上一次调用和调用次数。Focus 开启时工具调用和工具结果从对话记录中隐藏，你看到的只有横幅和 Claude 的回复。回合结束时若仍有待办步骤，横幅会暂停；你的下一个 prompt 让它继续。`[–]` 把它收成一行。颜色：blue、dark、light、green、pink、rainbow，或自定义。
 
 <img src="docs/screenshots/focus-band.png" alt="prompt 上方的 Focus 横幅：任务标题和计时、进度条、带各自计时的步骤，以及正在运行的工具调用" width="720">
 
@@ -128,6 +129,7 @@ ESOL 设置里有二十种语言可选，或选 **Other** 并输入名称。语�
 - **一条英语 prompt 没被纠正。** 它里面的日常英语单词太少（简短、满是术语的 prompt）。在 Settings 里调低阈值或最少词数。
 - **Voice 按钮显示 `/voice` 不可用。** 用 claude.ai 账号登录（`/login`）；听写在 API key 或第三方提供商下不可用。
 - **日志一直在变大。** 没有任何机制修剪它。重命名归档即可；下一条目会重新创建文件。超过 4 MiB 后标签页停止预览，Review 会要求先归档。
+- **提示说 cc-esol 的某个 hook 被跳过。** 使用 Team 或 Enterprise 账号登录时，Claude Code 内置的防护（`cc-plugin-sec-default`）会把用户插件挡在 system prompt 和经典 hook 事件之外，并在对话记录中说明。cc-esol 建立在能通过的部分之上，因此 coaching、横幅和其余功能都按描述工作；唯一的损失是 Model 页面的 "Running in" 一行，它永远得不到当前的权限模式（shift+tab 仍可切换）。无需任何配置。
 - 更多内容见 [docs/english-coach.md](docs/english-coach.md) 和 [docs/statusline.md](docs/statusline.md)。
 
 ## 开发

@@ -4,7 +4,7 @@ Passive American English coaching for someone whose first language is not Englis
 
 ## What it does
 
-- On every prompt that is yours (typed or dictated, not a slash command, not a notification), the mod measures the text and, when it is English, attaches a one-line gate marker that Claude reads with the prompt; the coaching rules themselves sit in the system prompt (cached) while coaching is on.
+- On every prompt that is yours (typed or dictated, not a slash command, not a notification), the mod measures the text and, when it is English, attaches a one-line gate marker that Claude reads with the prompt; the coaching rules themselves travel in the `english_log` tool's description while coaching is on, never in the system prompt.
 - Claude calls the mod's `english_log` tool with the original, a native version and the reasons; the mod appends one entry to the log. The file looks like this:
 
 ```markdown

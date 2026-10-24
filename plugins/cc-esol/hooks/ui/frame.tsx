@@ -16,7 +16,7 @@ const openPage = atom({ plugin: 'cc-esol', key: 'menu' } as const, null)
 const language = atom({ plugin: 'cc-esol', key: 'lang' } as const, 'en')
 // Whether this session's values were refilled from the store. A /clear
 // resets every session value, this one too, so the next prompt restores
-// whether or not the classic SessionStart event reached the plugin.
+// whether or not a session.start event reached the plugin.
 const refilled = atom({ plugin: 'cc-esol', key: 'restored' } as const, false)
 
 export function readMenu($: EngineInterface) {
