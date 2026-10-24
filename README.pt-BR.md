@@ -77,7 +77,7 @@ A página Status line instala, confere e remove o [ccstatusline](https://github.
 
 ### Settings
 
-A chave do Focus e a cor dele, o conjunto de ícones (Nerd Font, Unicode ou Auto: Nerd Font quando a sua configuração do ccstatusline desenha powerline, então nenhuma fonte é instalada nem exigida), o tema e a status line.
+A chave do Focus e a cor dele, o tema como um chip com o nome dele, a status line e o conjunto de ícones (Nerd Font, Unicode ou Auto: Nerd Font quando a sua configuração do ccstatusline desenha powerline, então nenhuma fonte é instalada nem exigida).
 
 <img src="docs/screenshots/settings.png" alt="A aba Settings: Focus On/Off, o conjunto de ícones e as linhas da cor do Focus, do tema e da status line" width="420">
 

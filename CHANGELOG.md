@@ -27,6 +27,6 @@ versions follow [Semantic Versioning](https://semver.org/).
 - **Status line page and Layout Editor.** Install, check and remove ccstatusline; edit its layout
   line by line with a live preview, a dry run before every save and timestamped backups.
 - **Voice button.** Dictation on or off through Claude Code's own `/voice`, beside Model.
-- **Settings.** The Focus switch with its color as a painted chip, the theme row with the one
-  picked, a ccstatusline chip, and the icon set (Nerd Font, Unicode, auto) last.
+- **Settings.** The Focus switch with its color as a painted chip, the Theme block with the chosen
+  theme as its chip, a ccstatusline chip, and the icon set (Nerd Font, Unicode, auto) last.
 - **`/esol` command** and the corner button that open the pane on a tab.

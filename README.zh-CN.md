@@ -79,7 +79,7 @@ Status line 页面负责安装、检查和移除 [ccstatusline](https://github.c
 
 ### Settings
 
-Focus 开关及其颜色、图标集（Nerd Font、Unicode，或 Auto：当你的 ccstatusline 配置绘制 powerline 时使用 Nerd Font，因此从不安装也不要求任何字体）、主题和状态栏。
+Focus 开关及其颜色、以名称显示为按钮的主题、状态栏，以及图标集（Nerd Font、Unicode，或 Auto：当你的 ccstatusline 配置绘制 powerline 时使用 Nerd Font，因此从不安装也不要求任何字体）。
 
 <img src="docs/screenshots/settings.png" alt="Settings 标签页：Focus On/Off、图标集，以及 Focus 颜色、主题和状态栏的行" width="420">
 

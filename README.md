@@ -77,7 +77,7 @@ The Status line page installs, checks and removes [ccstatusline](https://github.
 
 ### Settings
 
-The Focus switch and its color, the icon set (Nerd Font, Unicode, or Auto: Nerd Font when your ccstatusline config draws powerline, so no font is ever installed or required), the theme and the status line.
+The Focus switch and its color, the theme as a chip with its name, the status line, and the icon set (Nerd Font, Unicode, or Auto: Nerd Font when your ccstatusline config draws powerline, so no font is ever installed or required).
 
 <img src="docs/screenshots/settings.png" alt="The Settings tab: Focus On/Off, the icon set, and the rows for the Focus color, the theme and the status line" width="420">
 

@@ -79,7 +79,7 @@ La página Status line instala, comprueba y elimina [ccstatusline](https://githu
 
 ### Settings
 
-El interruptor de Focus y su color, el juego de iconos (Nerd Font, Unicode o Auto: Nerd Font cuando tu configuración de ccstatusline dibuja powerline, así que nunca se instala ni se exige ninguna fuente), el tema y la status line.
+El interruptor de Focus y su color, el tema como un chip con su nombre, la status line y el juego de iconos (Nerd Font, Unicode o Auto: Nerd Font cuando tu configuración de ccstatusline dibuja powerline, así que nunca se instala ni se exige ninguna fuente).
 
 <img src="docs/screenshots/settings.png" alt="La pestaña Settings: Focus On/Off, el juego de iconos y las filas del color de Focus, el tema y la status line" width="420">
 
