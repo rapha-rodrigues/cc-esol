@@ -18,13 +18,17 @@ versions follow [Semantic Versioning](https://semver.org/).
   the tool waits behind ToolSearch while coaching is off. The gate ignores prompts written in
   another script.
 - **Model page.** The model, the effort (low to max) and the permission mode for the session.
-- **Focus.** A band above the prompt with the task's progress, fed by Claude's own todos, tasks, an
-  approved plan and a feed of the last four tool calls as Claude described them (the ones done
-  dimmed, the one under way with its clock, their count in the header); while on, a prompt long
-  enough to be several steps carries one short line asking Claude to open a todo list (only in a
-  session that has a todo tool, which it names), the todo tools' descriptions carry the same note,
-  each step and each call carries one mark (the brain until it is done, a check then), and tool
-  calls and tool results are hidden. Six band colors plus a custom one.
+- **Focus.** A band above the prompt with the task's progress. Claude posts its plan to the band's
+  own `focus_progress` tool, then only the number of each step as it starts, in the same message as
+  that step's first tool call; todos, tasks and an approved plan feed it too where the session has
+  them. The tool sits in the tool list while Focus is on and behind ToolSearch while off, and each
+  prompt typed while on carries one line pointing at it. A feed of the last tool calls as Claude
+  described them sits under the running step; a row opens on what its call ran and the first lines
+  it printed, and the calls stay until the next prompt. Each step and each call carries one mark
+  (the brain until it is done, a check then, a cross for a call that failed); a turn interrupted,
+  refused or failed with no list says so instead of Done. Tool calls and tool results are hidden,
+  except a failed or interrupted call; ctrl+o shows every call, and the run-in-background hint
+  stays. Six band colors plus a custom one.
 - **Themes.** Terminal color themes from terminalcolors.com, downloaded at runtime and applied to the
   terminal (OSC, or a Windows Terminal profile) and to Claude Code's own colors.
 - **Status line page and Layout Editor.** Install, check and remove ccstatusline; edit its layout

@@ -17,10 +17,16 @@ import {
   taskElapsed,
   toStatus,
   feedInView,
-  focusNudge,
-  todoToolAmong,
-  FOCUS_TODO_NOTE,
-  wantsList,
+  canPost,
+  detailOf,
+  FOCUS_MARKER,
+  FOCUS_TOOL,
+  FOCUS_TOOL_DESCRIPTION,
+  MAX_STEPS,
+  outputOf,
+  progressPost,
+  progressReply,
+  stepsAfterPost,
   withCall,
   withCallDone,
 } from '../hooks/lib/focus'
@@ -42,6 +48,10 @@ describe('focus arithmetic', () => {
     expect(stepCaption(taskOf())).toBe('Working…')
     expect(progressOf({ ...t, doneAt: 9 })).toBe(100)
     expect(stepCaption({ ...t, doneAt: 9 })).toBe('Done')
+    // A task whose last turn ended without an answer says how it stopped.
+    expect(stepCaption({ ...taskOf(), doneAt: 9, stoppedBy: 'aborted' })).toBe('Interrupted')
+    expect(stepCaption({ ...taskOf(), doneAt: 9, stoppedBy: 'error' })).toBe('Error')
+    expect(stepCaption({ ...taskOf(), doneAt: 9, stoppedBy: 'refusal' })).toBe('Refused')
     // Without a running step the caption points at the first one not done.
     expect(stepCaption(taskOf('completed', 'completed', 'pending'))).toBe('Step 3 of 3')
     expect(stepCaption(taskOf('completed', 'completed'))).toBe('Step 2 of 2')
@@ -150,30 +160,73 @@ describe('focus arithmetic', () => {
   })
 })
 
-describe('focus nudge', () => {
-  test('rides only beside a prompt long enough to be several steps', async () => {
-    expect(wantsList('continue')).toBe(false)
-    expect(wantsList('please fix the failing test in the auth module')).toBe(false)
-    expect(wantsList('Reorganize the settings tab: move the icons last, paint the focus chip and add a chip for the status line')).toBe(true)
-    expect(wantsList('Two things:\n1. fix it\n2. test it')).toBe(true)
-    expect(wantsList('')).toBe(false)
-    expect(todoToolAmong(['Bash', 'TodoWrite', 'TaskCreate'])).toBe('TodoWrite')
-    expect(todoToolAmong(['Bash', 'TaskCreate', 'TaskUpdate'])).toBe('TaskCreate')
-    expect(todoToolAmong(['Bash', 'Read'])).toBe(null)
-    for (const tool of ['TodoWrite', 'TaskCreate'] as const) {
-      expect(focusNudge(tool).startsWith('Focus band:')).toBe(true)
-      expect(focusNudge(tool)).toContain(`write the list with ${tool}:`)
-      expect(focusNudge(tool)).toContain('more than two tool calls')
-      expect(focusNudge(tool).length).toBeLessThan(320)
-    }
-    // The note on the todo tools says the same, and names TaskUpdate for the task list.
-    for (const tool of ['TodoWrite', 'TaskCreate'] as const) {
-      expect(FOCUS_TODO_NOTE(tool).startsWith('\n\nFocus band:')).toBe(true)
-      expect(FOCUS_TODO_NOTE(tool)).toContain('more than two tool calls')
-      expect(FOCUS_TODO_NOTE(tool).length).toBeLessThan(320)
-    }
-    expect(FOCUS_TODO_NOTE('TaskCreate')).toContain('TaskUpdate')
-    expect(FOCUS_TODO_NOTE('TodoWrite')).not.toContain('TaskUpdate')
+describe('focus progress', () => {
+  test('the tool and the line beside each prompt: short, and the description says to post the plan once and then step numbers alongside real calls', async () => {
+    expect(FOCUS_MARKER).toContain(FOCUS_TOOL)
+    expect(FOCUS_MARKER.length).toBeLessThan(200)
+    expect(FOCUS_TOOL_DESCRIPTION.length).toBeLessThan(1200)
+    expect(FOCUS_TOOL_DESCRIPTION).toContain('more than two tool calls')
+    expect(FOCUS_TOOL_DESCRIPTION).toContain('same message')
+    expect(FOCUS_TOOL_DESCRIPTION).toContain('done: true')
+    expect(FOCUS_TOOL_DESCRIPTION).toContain('never from a subagent')
+  })
+
+  test('a post is checked: steps trimmed and bounded, a step number from 1, done; nothing to apply is null', async () => {
+    expect(progressPost({ steps: ['  Read the code ', '', 'Fix it', { text: 'Test it' }, 7], current: 1 })).toEqual({ title: null, steps: ['Read the code', 'Fix it', 'Test it'], current: 1, done: false })
+    expect(progressPost({ current: 3 })).toEqual({ title: null, steps: null, current: 3, done: false })
+    expect(progressPost({ done: true, title: ' Ship ' })).toEqual({ title: 'Ship', steps: null, current: null, done: true })
+    expect(progressPost({ steps: Array.from({ length: 30 }, (_, i) => `s${i}`) })?.steps).toHaveLength(MAX_STEPS)
+    expect(progressPost({ steps: ['x'.repeat(200)] })?.steps?.[0]).toHaveLength(80)
+    for (const empty of [{}, { current: 0 }, { current: 1.5 }, { steps: [] }, { done: false }, null, 'steps']) expect(progressPost(empty)).toBeNull()
+  })
+
+  test('the plan, then step numbers: done before the current one, it running, the rest pending; done finishes all', async () => {
+    const plan = progressPost({ steps: ['Read', 'Fix', 'Test'], current: 1 })!
+    const first = stepsAfterPost([], plan)!
+    expect(first.map(s => s.status)).toEqual(['in_progress', 'pending', 'pending'])
+    expect(progressReply(first)).toBe('Band: step 1 of 3.')
+    const second = stepsAfterPost(first, progressPost({ current: 2 })!)!
+    expect(second.map(s => [s.text, s.status])).toEqual([['Read', 'completed'], ['Fix', 'in_progress'], ['Test', 'pending']])
+    expect(second.map(s => s.id)).toEqual(first.map(s => s.id))
+    const all = stepsAfterPost(second, progressPost({ done: true })!)!
+    expect(all.every(s => s.status === 'completed')).toBe(true)
+    expect(progressReply(all)).toBe('Band: 3 of 3 steps done.')
+    // A number past the end is every step done; a number alone needs a plan on the band.
+    expect(stepsAfterPost(first, progressPost({ current: 9 })!)!.every(s => s.status === 'completed')).toBe(true)
+    expect(stepsAfterPost([], progressPost({ current: 2 })!)).toBeNull()
+    // A plan with no number: a fresh one starts at its first step, a revised
+    // one keeps the states by text, and repeated texts get their own ids.
+    expect(stepsAfterPost([], progressPost({ steps: ['A', 'B'] })!)!.map(s => s.status)).toEqual(['in_progress', 'pending'])
+    const revised = stepsAfterPost(second, progressPost({ steps: ['Read', 'Fix', 'Lint', 'Test'] })!)!
+    expect(revised.map(s => s.status)).toEqual(['completed', 'in_progress', 'pending', 'pending'])
+    expect(new Set(stepsAfterPost([], progressPost({ steps: ['A', 'A'] })!)!.map(s => s.id)).size).toBe(2)
+    // A plan from another source is advanced by number too.
+    const fromPlan = [{ id: 'plan-0', text: 'One', status: 'pending' as const }, { id: 'plan-1', text: 'Two', status: 'pending' as const }]
+    expect(stepsAfterPost(fromPlan, progressPost({ current: 2 })!)!.map(s => s.status)).toEqual(['completed', 'in_progress'])
+  })
+
+  test('the band\'s own tool owns a task once it posts; the other sources give way to it', async () => {
+    expect(canPost('todo', undefined)).toBe(true)
+    expect(canPost('plan', 'todo')).toBe(true)
+    expect(canPost('progress', 'plan')).toBe(true)
+    expect(canPost('todo', 'progress')).toBe(false)
+    expect(canPost('tasks', 'progress')).toBe(false)
+    expect(canPost('progress', 'progress')).toBe(true)
+  })
+
+  test('a call\'s detail and output: the command or the target, the first lines it printed, the rest counted', async () => {
+    expect(detailOf('Bash', { command: 'npm test\nnpm run lint\necho a\necho b', description: 'Run the tests' })).toBe('npm test\nnpm run lint\necho a')
+    expect(detailOf('Edit', { file_path: '/p/hooks/a.ts', old_string: 'x', new_string: 'y' })).toBe('/p/hooks/a.ts')
+    expect(detailOf('Grep', { pattern: 'TODO', path: 'src' })).toBe('TODO  src')
+    expect(outputOf({ stdout: 'ok\n', stderr: 'warn', interrupted: false })).toEqual({ lines: ['ok', 'warn'], more: 0 })
+    expect(outputOf({ type: 'text', file: { filePath: '/a', content: 'one\ntwo', numLines: 2, startLine: 1, totalLines: 2 } })).toEqual({ lines: ['one', 'two'], more: 0 })
+    expect(outputOf({ type: 'image', file: { base64: 'x'.repeat(5000) } })).toEqual({ lines: ['[image]'], more: 0 })
+    expect(outputOf('')).toEqual({ lines: [], more: 0 })
+    const long = outputOf(Array.from({ length: 30 }, (_, i) => `line ${i}`).join('\n'))
+    expect(long.lines).toHaveLength(12)
+    expect(long.more).toBe(18)
+    // Any other record in brief: its long strings cut.
+    expect(outputOf({ content: 'y'.repeat(500) }).lines.join('\n')).not.toContain('y'.repeat(200))
   })
 
   test('the feed keeps the last four calls, oldest first, and stamps one done by its id', async () => {
@@ -185,6 +238,9 @@ describe('focus nudge', () => {
     expect(feed.find(a => a.id === 4)?.doneAt).toBe(40)
     expect(feed.find(a => a.id === 5)?.doneAt).toBeUndefined()
     expect(withCallDone(feed, 9, 1)).toEqual(feed)
+    // A failed call is marked, and what it printed is kept for its row.
+    const failed = withCallDone(feed, 5, 50, { failed: true, output: { lines: ['boom'], more: 3 } }).find(a => a.id === 5)
+    expect(failed).toMatchObject({ doneAt: 50, failed: true, output: ['boom'], moreLines: 3 })
     // A slow call under way is not pushed out by quick ones that came after
     // it: the oldest done one goes first, and the view shows running ones first.
     let slow = [call(1)]

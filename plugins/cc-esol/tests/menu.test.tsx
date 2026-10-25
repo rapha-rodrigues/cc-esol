@@ -295,8 +295,8 @@ describe('the Focus band', () => {
     await pane.press({ key: 'focus-on' })
 
     const submitted = await $.prompt.submit({ text: 'Build the dashboard', wait: false, origin: { kind: 'composer' } })
-    expect(submitted.context ?? []).toHaveLength(0)
-    const todos = (...rows: [string, 'pending' | 'in_progress' | 'completed', string][]) =>
+    expect((submitted.context ?? []).filter(c => c.includes('mcp__cc-esol__focus_progress'))).toHaveLength(1)
+    const todos =(...rows: [string, 'pending' | 'in_progress' | 'completed', string][]) =>
       $.tool.call({ tool: 'TodoWrite', todos: rows.map(([content, status, activeForm]) => ({ content, status, activeForm })) } as never)
     await todos(['Plan', 'completed', 'Planning'], ['Fetch data', 'in_progress', 'Fetching data'], ['Draw charts', 'pending', 'Drawing charts'], ['Test', 'completed', 'Testing'])
     expect(await drawn.find({ text: /Build the dashboard/ })).toBeDefined()
@@ -409,38 +409,15 @@ describe('the Focus band', () => {
     await clock.advance(3_000)
     await $.turn.complete({ reason: 'answer', text: 'done' } as never)
     expect(await drawn.find({ text: /Done/ })).toBeDefined()
-    expect(await drawn.find({ text: /✓\s+Edit/ })).toBeUndefined()
+    // The calls stay after the turn, open to inspection, until the next prompt.
+    expect(await drawn.find({ text: /✓\s+Edit  three.ts/ })).toBeDefined()
+    await clock.advance(20_000)
+    expect(await drawn.find({ text: /✓\s+Edit  three.ts/ })).toBeDefined()
+    await $.prompt.submit({ text: 'next thing', wait: false, origin: { kind: 'composer' } })
+    expect(await drawn.find({ text: /Edit/ })).toBeUndefined()
   })
 
-  test("while Focus is on, the todo tools' descriptions carry the band's ask; off, they are the engine's own", async ($, on) => {
-    bareEngine(on)
-    const invalidated: string[] = []
-    on('ui.invalidate', (_, e) => {
-      invalidated.push(e.event)
-      return { value: undefined }
-    })
-    on('tool.describe', (_, e) => ({ description: e.description }))
-    const describe = (tool: string) => $.tool.describe({ tool, description: `${tool} as the engine wrote it`, provider: { plugin: 'engine', tier: 'core' } })
-    expect((await describe('TodoWrite')).description).toBe('TodoWrite as the engine wrote it')
-
-    const { hint, pane } = await mountAll($)
-    await hint.press({ key: 'esol-toggle' })
-    await pane.press({ key: 'tab-settings' })
-    await pane.press({ key: 'focus-on' })
-    expect(invalidated.filter(e => e === 'tool.describe')).toHaveLength(1)
-    const todo = (await describe('TodoWrite')).description
-    expect(todo.startsWith('TodoWrite as the engine wrote it')).toBe(true)
-    expect(todo).toContain('Focus band')
-    expect(todo).toContain('more than two tool calls')
-    expect((await describe('TaskCreate')).description).toContain('TaskUpdate')
-    expect((await describe('Bash')).description).toBe('Bash as the engine wrote it')
-
-    await pane.press({ key: 'focus-off' })
-    expect(invalidated.filter(e => e === 'tool.describe')).toHaveLength(2)
-    expect((await describe('TodoWrite')).description).toBe('TodoWrite as the engine wrote it')
-  })
-
-  test('while Focus is on, a prompt long enough to be several steps carries the ask for a list, naming the todo tool the session has; none, nothing', async ($, on) => {
+  test('a row opens on what its call ran and printed and closes again; a failed call is crossed', async ($, on) => {
     bareEngine(on)
     mock.clock(on)
     on('env.get', () => ({ value: '/home/me' }))
@@ -449,25 +426,173 @@ describe('the Focus band', () => {
     on('session.cwd', () => ({ value: '/home/me/p' }))
     on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
     on('ui.invalidate', () => ({ value: undefined }))
-    let tools = ['Bash', 'Read', 'TodoWrite']
-    on('tool.list', () => ({ value: tools.map(name => ({ name, description: name, mcp: false })) }))
-    const LONG = 'Reorganize the settings tab: move the icons last, paint the focus chip, and add a chip for the status line'
+    on('tool.call', { tool: 'Bash' }, (_, e) =>
+      (e as { command: string }).command === 'false'
+        ? { deny: 'boom' }
+        : { result: { stdout: Array.from({ length: 11 }, (_, i) => `line ${i + 1}`).join('\n'), stderr: '', interrupted: false } },
+    )
+    const { hint, pane } = await mountAll($)
+    const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...bandAt() })
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+    await $.prompt.submit({ text: 'Check the build', wait: false, origin: { kind: 'composer' } })
+
+    await $.tool.call({ tool: 'Bash', command: 'npm run build', description: 'Build it' } as never)
+    await $.tool.call({ tool: 'Bash', command: 'false', description: 'Fail on purpose' } as never)
+    expect(await drawn.find({ text: /✓\s+Bash  Build it/ })).toBeDefined()
+    expect(await drawn.find({ text: /✗\s+Bash  Fail on purpose/ })).toBeDefined()
+
+    const row = await drawn.find({ type: 'Button', text: /Build it/ })
+    expect(row?.key).toBeDefined()
+    await drawn.press({ key: row!.key! })
+    expect(await drawn.find({ text: /^\$ npm run build$/ })).toBeDefined()
+    expect(await drawn.find({ text: /^line 1$/ })).toBeDefined()
+    expect(await drawn.find({ text: /^line 8$/ })).toBeDefined()
+    expect(await drawn.find({ text: /^line 9$/ })).toBeUndefined()
+    expect(await drawn.find({ text: /3 more lines · ctrl\+o/ })).toBeDefined()
+    // Another row opens in its place; pressed again, it closes.
+    const failed = await drawn.find({ type: 'Button', text: /Fail on purpose/ })
+    await drawn.press({ key: failed!.key! })
+    expect(await drawn.find({ text: /^line 1$/ })).toBeUndefined()
+    expect(await drawn.find({ text: /^boom$/ })).toBeDefined()
+    await drawn.press({ key: failed!.key! })
+    expect(await drawn.find({ text: /^boom$/ })).toBeUndefined()
+  })
+
+  test('focus_progress posts the plan and moves it a step at a time; behind ToolSearch while Focus is off, it changes nothing then, nor from a subagent', async ($, on) => {
+    bareEngine(on)
+    mock.clock(on)
+    on('env.get', () => ({ value: '/home/me' }))
+    on('fs.exists', () => ({ value: false }))
+    on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
+    on('session.cwd', () => ({ value: '/home/me/p' }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    on('turn.complete', (_, e) => ({ text: (e as { text?: string }).text ?? '' }))
+    on('tool.call', { tool: 'TodoWrite' }, () => ({ result: 'ok' }))
+    const invalidated: string[] = []
+    on('ui.invalidate', (_, e) => {
+      invalidated.push(e.event)
+      return { value: undefined }
+    })
+    on('tool.describe', (_, e) => ({ description: e.description, isDeferred: true }))
+    const describe = () => $.tool.describe({ tool: 'mcp__cc-esol__focus_progress', description: 'as registered', provider: { plugin: PLUGIN, tier: 'user' } })
+    const progress = async (input: Record<string, unknown>) => String(((await $.tool.call({ tool: 'mcp__cc-esol__focus_progress', ...input } as never)) as { result?: unknown }).result)
+
+    expect((await describe()).isDeferred).toBe(true)
+    expect(await progress({ steps: ['A', 'B'], current: 1 })).toMatch(/Focus is off/)
+    const { hint, pane } = await mountAll($)
+    const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...bandAt() })
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+    expect(invalidated.filter(e => e === 'tool.describe')).toHaveLength(1)
+    const listed = await describe()
+    expect(listed.isDeferred).toBe(false)
+    expect(listed.description).toContain('same message')
+
+    await $.prompt.submit({ text: 'Ship the report', wait: false, origin: { kind: 'composer' } })
+    expect(await progress({ current: 2 })).toMatch(/send steps first/)
+    expect(await progress({ steps: ['Read the data', 'Write the report', 'Check it'], current: 1 })).toBe('Band: step 1 of 3.')
+    expect(await drawn.find({ text: /Step 1 of 3/ })).toBeDefined()
+    expect(await drawn.find({ text: /Read the data/ })).toBeDefined()
+    expect(await drawn.find({ text: /0%/ })).toBeDefined()
+    expect(await progress({ current: 2 })).toBe('Band: step 2 of 3.')
+    expect(await drawn.find({ text: /Step 2 of 3/ })).toBeDefined()
+    expect(await drawn.find({ text: /33%/ })).toBeDefined()
+    expect(await drawn.find({ text: /^✓\s+1$/ })).toBeDefined()
+    // Its own calls are the band's business, not the feed's.
+    expect(await drawn.find({ text: /focus_progress/ })).toBeUndefined()
+    expect(await drawn.find({ text: /call/ })).toBeUndefined()
+
+    // A subagent's call changes nothing; nor does a todo list once the tool owns the task.
+    expect(await progress({ current: 3, agentId: 'a1' })).toMatch(/subagent/)
+    await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'Other plan', status: 'in_progress', activeForm: 'Other plan' }] } as never)
+    expect(await drawn.find({ text: /Other plan/ })).toBeUndefined()
+    expect(await drawn.find({ text: /Step 2 of 3/ })).toBeDefined()
+
+    expect(await progress({ done: true })).toBe('Band: 3 of 3 steps done.')
+    expect(await drawn.find({ text: /100%/ })).toBeDefined()
+    await $.turn.complete({ reason: 'answer', text: 'shipped' } as never)
+    expect(await drawn.find({ text: /Done/ })).toBeDefined()
+
+    await pane.press({ key: 'focus-off' })
+    expect((await describe()).isDeferred).toBe(true)
+  })
+
+  test('every prompt typed while Focus is on carries the one line about focus_progress; off, or a slash command, nothing', async ($, on) => {
+    bareEngine(on)
+    mock.clock(on)
+    on('env.get', () => ({ value: '/home/me' }))
+    on('fs.exists', () => ({ value: false }))
+    on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
+    on('session.cwd', () => ({ value: '/home/me/p' }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    on('ui.invalidate', () => ({ value: undefined }))
     const submit = (text: string) => $.prompt.submit({ text, wait: false, origin: { kind: 'composer' } })
-    expect((await submit(LONG)).context ?? []).toHaveLength(0)
+    expect((await submit('Fix all failing tests')).context ?? []).toHaveLength(0)
 
     const { hint, pane } = await mountAll($)
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
     await pane.press({ key: 'focus-on' })
-    const ask = (r: { context?: readonly string[] }) => (r.context ?? []).find(c => c.startsWith('Focus band:'))
-    expect(ask(await submit(LONG))).toContain('write the list with TodoWrite:')
-    expect(ask(await submit('Two things:\n1. fix it\n2. test it'))).toBeDefined()
-    expect((await submit('continue')).context ?? []).toHaveLength(0)
-    // A session with the task list instead: the ask names TaskCreate.
-    tools = ['Bash', 'TaskCreate', 'TaskUpdate']
-    expect(ask(await submit(LONG))).toContain('write the list with TaskCreate:')
-    // A session with no todo tool at all: nothing to ask for.
-    tools = ['Bash', 'Read']
-    expect((await submit(LONG)).context ?? []).toHaveLength(0)
+    const line = (r: { context?: readonly string[] }) => (r.context ?? []).filter(c => c.startsWith('Focus band is on:'))
+    expect(line(await submit('Fix all failing tests'))).toHaveLength(1)
+    expect(line(await submit('continue'))).toHaveLength(1)
+    expect((await submit('/clear')).context ?? []).toHaveLength(0)
+  })
+
+  test('a turn that is interrupted, refused or fails with no list says so, never Done', async ($, on) => {
+    bareEngine(on)
+    mock.clock(on)
+    on('env.get', () => ({ value: '/home/me' }))
+    on('fs.exists', () => ({ value: false }))
+    on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
+    on('session.cwd', () => ({ value: '/home/me/p' }))
+    on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    on('turn.complete', (_, e) => ({ text: (e as { text?: string }).text ?? '' }))
+    on('ui.invalidate', () => ({ value: undefined }))
+    const { hint, pane } = await mountAll($)
+    const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...bandAt() })
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+    for (const [reason, word] of [['aborted', 'Interrupted'], ['refusal', 'Refused'], ['error', 'Error']] as const) {
+      await $.prompt.submit({ text: 'Rename the module', wait: false, origin: { kind: 'composer' } })
+      await $.turn.complete({ reason, text: '' } as never)
+      expect(await drawn.find({ text: new RegExp(`^${word}$`) })).toBeDefined()
+      expect(await drawn.find({ text: /✗ Rename the module/ })).toBeDefined()
+      expect(await drawn.find({ text: /Done/ })).toBeUndefined()
+    }
+  })
+
+  test('tool rows are hidden while Focus is on, except in ctrl+o, a call that failed or was cut, a group with more than calls, and the background pill', async ($, on) => {
+    bareEngine(on)
+    on('ui.invalidate', () => ({ value: undefined }))
+    const { hint, pane } = await mountAll($)
+    await hint.press({ key: 'esol-toggle' })
+    await pane.press({ key: 'tab-settings' })
+    await pane.press({ key: 'focus-on' })
+    const row = { tool_use_id: 't1', tool: 'Bash', input: { command: 'ls' }, isRunning: false, isErrored: false, isInterrupted: false }
+    const shows = async (component: string, props: Record<string, unknown>) => {
+      const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component, props } as never)
+      const seen = (await drawn.find({ text: /engine/ })) !== undefined
+      await drawn.unmount()
+      return seen
+    }
+    expect(await shows('ToolUse', row)).toBe(false)
+    expect(await shows('ToolUse', { ...row, isExpanded: true })).toBe(true)
+    expect(await shows('ToolUse', { ...row, isErrored: true })).toBe(true)
+    expect(await shows('ToolUse', { ...row, isInterrupted: true })).toBe(true)
+    expect(await shows('ToolResult', { tool_use_id: 't1', tool: 'Bash', output: {}, isErrored: false })).toBe(false)
+    expect(await shows('ToolResult', { tool_use_id: 't1', tool: 'Bash', output: {}, isErrored: true })).toBe(true)
+    expect(await shows('ToolResult', { tool_use_id: 't1', tool: 'Bash', output: {}, isErrored: false, isExpanded: true })).toBe(true)
+    const group = { calls: [], isActive: false, isExpanded: false }
+    expect(await shows('ToolGroup', { ...group, isCallsOnly: true })).toBe(false)
+    expect(await shows('ToolGroup', { ...group, isCallsOnly: false })).toBe(true)
+    expect(await shows('ToolGroup', { ...group, isCallsOnly: true, isExpanded: true })).toBe(true)
+    expect(await shows('ToolProgress', { tool_use_id: 't1', kind: 'background_hint', hint: '(ctrl+b to run in background)' })).toBe(true)
+    await pane.press({ key: 'focus-off' })
+    expect(await shows('ToolUse', row)).toBe(true)
   })
 })

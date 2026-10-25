@@ -12,14 +12,15 @@ import { readStatusLinePowerline } from './pages/statusline'
 const icons = atom({ plugin: 'cc-esol', key: 'icons' } as const, 'auto')
 
 export const ICON_SETS: readonly IconSet[] = ['auto', 'nerd', 'unicode']
-export type IconName = 'brain' | 'lamp' | 'done'
-// md-brain U+F09D1, md-lightbulb_on_outline U+F06E9 and fa-check U+F00C from
-// the Nerd Fonts; the check has a plain mark instead of an emoji, since it
-// sits in the band one per row.
+export type IconName = 'brain' | 'lamp' | 'done' | 'failed'
+// md-brain U+F09D1, md-lightbulb_on_outline U+F06E9, fa-check U+F00C and
+// fa-times U+F00D from the Nerd Fonts; the check and the cross have plain
+// marks instead of emoji, since they sit in the band one per row.
 export const GLYPHS: Record<IconName, { nerd: string; unicode: string }> = {
   brain: { nerd: '\u{F09D1}', unicode: '🧠' },
   lamp: { nerd: '\u{F06E9}', unicode: '💡' },
   done: { nerd: '\uF00C', unicode: '✓' },
+  failed: { nerd: '\uF00D', unicode: '✗' },
 }
 
 export function readIconSet($: EngineInterface) {

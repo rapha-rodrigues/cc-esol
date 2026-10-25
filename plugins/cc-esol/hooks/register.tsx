@@ -9,7 +9,7 @@ import { clearEnglishPending, drawEnglishTab, focusEsol, loadEnglish, registerEn
 import { loadIcons } from './icons'
 import { phrase, type Phrase } from './lib/i18n'
 import { drawCcslPage, focusCcsl, isCcslPanel, openEditor, scrollCcsl } from './pages/ccsl-editor'
-import { drawFocusBandPage, focusPromptSubmit, focusTurnComplete, loadFocus, registerFocus } from './pages/focus'
+import { drawFocusBandPage, focusPromptSubmit, focusSessionEnd, focusTurnComplete, loadFocus, registerFocus, registerFocusTool } from './pages/focus'
 import { drawModeTab, loadModel, readEffort, trackEffort, trackMode, trackModel } from './pages/model'
 import { drawSettingsPage } from './pages/settings'
 import { drawStatusLinePage, loadStatusLine } from './pages/statusline'
@@ -184,6 +184,7 @@ function registerLifecycle(on: On) {
     const started = await next(e)
     await restore($)
     await registerEnglishTool($)
+    await registerFocusTool($)
     await $.command.register({
       name: 'esol',
       description: 'Open the sidebar: model and effort, English coach, settings',
@@ -203,6 +204,7 @@ function registerLifecycle(on: On) {
     if (e.reason === 'clear') {
       await $.ui.close({ id: PANE }).catch(() => {})
       await setMenu($, null)
+      focusSessionEnd()
     } else await themesSessionEnd($)
     return next(e)
   }).catch(($, e, next) => next(e))
@@ -276,11 +278,11 @@ function registerTurns(on: On) {
     return next(await focusPromptSubmit($, await withCoaching($, e)))
   }).catch(($, e, next) => next(e))
 
-  // The main loop's end: a subagent's end (e.agentId) is heard too and is
-  // not the turn's.
+  // The main loop's end, and why it ended: a subagent's end (e.agentId) is
+  // heard too and is not the turn's.
   on('turn.complete', async ($, e, next) => {
     if ((e as { agentId?: string }).agentId === undefined) {
-      await focusTurnComplete($)
+      await focusTurnComplete($, (e as { reason?: 'answer' | 'aborted' | 'refusal' | 'error' }).reason ?? 'answer')
       await clearEnglishPending($)
     }
     return next(e)

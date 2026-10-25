@@ -257,8 +257,9 @@ const engineBeneath = (on: On, entries: Record<string, unknown> = {}, log?: stri
   on('ui.close', () => ({ value: undefined }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.cwd', () => ({ value: PROJECT_DIR }))
+  // The English tool's registrations; the session start registers Focus's too.
   on('tool.register', (_, e) => {
-    registered.push(e.description)
+    if (e.name === 'english_log') registered.push(e.description)
     return { value: { tool: `mcp__${PLUGIN}__${e.name}` } }
   })
   on('command.register', (_, e) => ({ value: { command: e.name } }))

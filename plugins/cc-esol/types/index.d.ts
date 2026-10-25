@@ -17,9 +17,17 @@ export type FocusStep = { id: string; text: string; status: StepStatus; startedA
 // Font when the status line config uses powerline).
 export type IconSet = 'auto' | 'nerd' | 'unicode'
 
+// Where a task's steps come from: the band's own focus_progress tool, the
+// todo list, the task tools, the approved plan.
+export type StepSource = 'progress' | 'todo' | 'tasks' | 'plan'
+
+// How a turn ended other than with an answer.
+export type TurnStop = 'aborted' | 'refusal' | 'error'
+
 // waitingAt: the turn ended with steps still pending (the clock pauses);
 // pausedMs: the time spent waiting, left out of the clock; calls: the tool
-// calls made on the main loop so far.
+// calls made on the main loop so far; source: who posted the steps;
+// stoppedBy: the turn that ended it did not end with an answer.
 export type FocusTask = {
   title: string
   startedAt: number
@@ -28,11 +36,26 @@ export type FocusTask = {
   waitingAt?: number | null
   pausedMs?: number
   calls?: number
+  source?: StepSource
+  stoppedBy?: TurnStop | null
 }
 
 // One tool call of the main loop, as the band's feed lists it: running
-// until stamped done. `id` tells two calls apart, started in parallel or not.
-export type FocusAction = { id: number; tool: string; target: string; startedAt: number; doneAt?: number | null }
+// until stamped done, failed when it errored or was refused. `id` tells two
+// calls apart, started in parallel or not. detail: its input in full;
+// output: the first lines it printed, moreLines the ones left out; what an
+// opened row shows.
+export type FocusAction = {
+  id: number
+  tool: string
+  target: string
+  startedAt: number
+  doneAt?: number | null
+  failed?: boolean
+  detail?: string
+  output?: string[]
+  moreLines?: number
+}
 
 // colors: the theme's eight normal ANSI colors, drawn as its swatch.
 export type ThemeEntry = { slug: string; name: string; colors: string[] }
@@ -121,6 +144,7 @@ declare module 'claude-code' {
       focusCollapsed: boolean
       task: FocusTask | null
       feed: FocusAction[]
+      feedOpen: number | null
       now: number
       themes: ThemeEntry[]
       themeName: string | null

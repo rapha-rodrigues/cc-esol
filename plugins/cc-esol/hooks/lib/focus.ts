@@ -1,8 +1,8 @@
 // Focus mode's arithmetic and look: the band's colors, the progress numbers,
-// the step clocks, the approved plan read as steps, the "now" line, and the
-// one line that asks for a list beside a long prompt while Focus is on. Pure.
+// the step clocks, the approved plan read as steps, the feed of calls with
+// what each one ran and printed, and the band's own progress tool. Pure.
 
-import type { FocusAction, FocusColors, FocusStep, FocusTask, FocusTheme, StepStatus } from '../../types'
+import type { FocusAction, FocusColors, FocusStep, FocusTask, FocusTheme, StepSource, StepStatus, TurnStop } from '../../types'
 import { blend } from './colors'
 
 // Eight colors, red to pink, for the rainbow band and the rainbow effort word.
@@ -41,27 +41,100 @@ export const callsText = (t: FocusTask): string => {
   return n === 0 ? '' : `${n} call${n === 1 ? '' : 's'}`
 }
 
-// The one line Focus adds beside a prompt that reads as a task of several
-// steps while on: the band mirrors Claude's own list, so it asks for one,
-// with a threshold the model can apply before it starts. Beside the prompt,
-// not in the system prompt: Claude Code's built-in guard keeps a user's
-// plugin out of the system prompt on a Team or Enterprise login, and a line
-// beside the prompt reaches the model everywhere.
-export type TodoTool = 'TodoWrite' | 'TaskCreate'
+// The band's own tool. Claude posts its plan as short steps, then only the
+// number of the step it starts, in the same message as that step's first
+// tool call: an update costs a few output tokens and no request of its own.
+// The rules live in the description (in the tool list while Focus is on,
+// behind ToolSearch while off); each prompt typed while on carries one line
+// pointing at them. Beside the prompt, not in the system prompt: Claude
+// Code's built-in guard keeps a user's plugin out of the system prompt on a
+// Team or Enterprise login, and a line beside the prompt reaches the model
+// everywhere. The todo tools, the task tools and an approved plan still
+// feed the band where the session has them.
+export const FOCUS_TOOL_NAME = 'focus_progress'
+export const FOCUS_TOOL = 'mcp__cc-esol__focus_progress'
+export const MAX_STEPS = 20
+export const MAX_STEP_TEXT = 80
 
-// The todo tool the session offers the model, TodoWrite first; null when it
-// has neither, and then there is nothing to ask for.
-export const todoToolAmong = (names: readonly string[]): TodoTool | null =>
-  names.includes('TodoWrite') ? 'TodoWrite' : names.includes('TaskCreate') ? 'TaskCreate' : null
+export const FOCUS_TOOL_DESCRIPTION = [
+  'Updates the Focus band, the progress band the user watches above the prompt while Focus is on: the user does not see your tool calls or their output then, only your text and this band.',
+  'Use it for a task that will take more than two tool calls; a shorter one needs no plan.',
+  'First call, before the task\'s first tool call (or right after a plan is approved): steps, your plan in order as short steps of a few words each, and current: 1.',
+  'Then, as each step starts, send only current (its number, counting from 1) in the same message as that step\'s first tool call, never in a message of its own; when the last step ends, send done: true.',
+  'Send steps again only when the plan changes. Main conversation only, never from a subagent.',
+].join(' ')
 
-export const focusNudge = (tool: TodoTool): string =>
-  `Focus band: a progress band above the prompt mirrors your todo list. Before your first tool call, if this will take more than two tool calls, write the list with ${tool}: one item per step, exactly one in_progress, each marked completed as it ends.`
+export const FOCUS_TOOL_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string', description: 'Optional short name for the whole task.' },
+    steps: { type: 'array', items: { type: 'string' }, description: 'The plan in order, one short step each: on the first call, and again only when the plan changes.' },
+    current: { type: 'integer', minimum: 1, description: 'The step starting now, counting from 1; the ones before it are done.' },
+    done: { type: 'boolean', description: 'True once every step is done.' },
+  },
+}
 
-// What the band adds to the todo tools' own descriptions while Focus is on
-// (tool.describe, cached in the tool list; nothing per prompt): the same ask,
-// read where the model decides whether to use the tool.
-export const FOCUS_TODO_NOTE = (tool: TodoTool): string =>
-  `\n\nFocus band: a progress band above the prompt mirrors this list while Focus is on. Open the list before the first tool call of any task that will take more than two tool calls, one item per step; keep exactly one in_progress and mark each completed as soon as it ends${tool === 'TaskCreate' ? ' (TaskUpdate)' : ''}. A task of one step needs no list.`
+export const FOCUS_MARKER = `Focus band is on: for a task of more than two tool calls, keep it updated with ${FOCUS_TOOL} as its description says.`
+
+// A focus_progress call's input, checked: the steps trimmed and bounded
+// (a string each, or an object with a text, as some models send them).
+// Null when it carries nothing to apply.
+export type ProgressPost = { title: string | null; steps: string[] | null; current: number | null; done: boolean }
+
+export const progressPost = (input: unknown): ProgressPost | null => {
+  const raw = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>
+  const texts = Array.isArray(raw.steps)
+    ? raw.steps.flatMap(s => {
+        const text = typeof s === 'string' ? s : typeof s === 'object' && s !== null && typeof (s as { text?: unknown }).text === 'string' ? (s as { text: string }).text : ''
+        return text.trim() === '' ? [] : [text.trim().slice(0, MAX_STEP_TEXT)]
+      })
+    : []
+  const steps = texts.length > 0 ? texts.slice(0, MAX_STEPS) : null
+  const current = typeof raw.current === 'number' && Number.isInteger(raw.current) && raw.current >= 1 ? raw.current : null
+  const done = raw.done === true
+  const title = typeof raw.title === 'string' && raw.title.trim() !== '' ? raw.title.trim().slice(0, MAX_STEP_TEXT) : null
+  return steps === null && current === null && !done ? null : { title, steps, current, done }
+}
+
+// Step ids by their text, so a revised plan keeps the clocks of the steps
+// it keeps; a repeated text is numbered.
+const progressIds = (texts: readonly string[]): string[] => {
+  const seen = new Map<string, number>()
+  return texts.map(text => {
+    const n = (seen.get(text) ?? 0) + 1
+    seen.set(text, n)
+    return n === 1 ? `p:${text}` : `p:${text}#${n}`
+  })
+}
+
+// The steps after a post: the plan it gives, or the one on the band; done up
+// to the current step, that one running, the rest pending; every one done
+// on done. A plan with no number keeps the states it had by text, and a
+// fresh one starts at its first step. Null with no plan to apply it to.
+export const stepsAfterPost = (prev: readonly FocusStep[], post: ProgressPost): FocusStep[] | null => {
+  const texts = post.steps ?? (prev.length > 0 ? prev.map(s => s.text) : null)
+  if (texts === null) return null
+  const ids = progressIds(texts)
+  const at = post.done ? texts.length : post.current === null ? null : Math.min(post.current, texts.length + 1) - 1
+  if (at === null) {
+    const kept = texts.map((text, i): FocusStep => ({ id: ids[i]!, text, status: prev.find(s => s.text === text)?.status ?? 'pending' }))
+    const fresh = !kept.some(s => s.status !== 'pending')
+    return fresh ? kept.map((s, i) => (i === 0 ? { ...s, status: 'in_progress' } : s)) : kept
+  }
+  return texts.map((text, i) => ({ id: ids[i]!, text, status: i < at ? 'completed' : i === at ? 'in_progress' : 'pending' }))
+}
+
+// What the tool answers: a few words, since the model reads them.
+export const progressReply = (steps: readonly FocusStep[]): string => {
+  const running = steps.findIndex(s => s.status === 'in_progress')
+  return running >= 0 ? `Band: step ${running + 1} of ${steps.length}.` : `Band: ${doneSteps(steps)} of ${steps.length} steps done.`
+}
+const doneSteps = (steps: readonly FocusStep[]) => steps.filter(s => s.status === 'completed').length
+
+// Which source may post the task's steps: the band's own tool owns a task
+// once it posts, and the others give way to it; among the others the latest
+// posts.
+export const canPost = (incoming: StepSource, current: StepSource | undefined): boolean => incoming === 'progress' || current !== 'progress'
 
 // The band's feed: the last calls of the main loop in the order they
 // started, at most `cap` kept. A call under way stays whatever comes after
@@ -75,8 +148,49 @@ export const withCall = (feed: readonly FocusAction[], call: FocusAction, cap = 
   }
   return next
 }
-export const withCallDone = (feed: readonly FocusAction[], id: number, at: number): FocusAction[] =>
-  feed.map(a => (a.id === id ? { ...a, doneAt: at } : a))
+// A call's end: stamped, marked failed when it errored or was refused, and
+// what it printed kept for its row to open on.
+export const withCallDone = (feed: readonly FocusAction[], id: number, at: number, end: { failed?: boolean; output?: FeedOutput } = {}): FocusAction[] =>
+  feed.map(a => (a.id === id ? { ...a, doneAt: at, ...(end.failed ? { failed: true } : {}), ...(end.output === undefined ? {} : { output: end.output.lines, moreLines: end.output.more }) } : a))
+
+// What an opened row shows: the call's input in full (the command, the
+// path, the pattern) and the first lines of what it printed. Kept in the
+// session's memory only, bounded: the band shows FEED_DETAIL_LINES of them.
+export const FEED_DETAIL_LINES = 8
+const KEPT_LINES = 12
+const KEPT_LINE_CHARS = 300
+export type FeedOutput = { lines: string[]; more: number }
+
+export const detailOf = (tool: string, input: Record<string, unknown>): string => {
+  const str = (k: string) => (typeof input[k] === 'string' ? (input[k] as string) : '')
+  const text =
+    tool === 'Bash' || tool === 'PowerShell'
+      ? str('command')
+      : str('file_path') || str('notebook_path') || [str('pattern'), str('path')].filter(s => s !== '').join('  ') || str('url') || str('query') || str('prompt') || str('description')
+  return text.split(/\r?\n/).slice(0, 3).join('\n').slice(0, KEPT_LINE_CHARS)
+}
+
+// Lines of a tool's result: a shell's output, a read file's text, a string;
+// any other record in brief, its long strings cut; an image as a word.
+export const outputOf = (result: unknown): FeedOutput => {
+  let text = ''
+  if (typeof result === 'string') text = result
+  else if (typeof result === 'object' && result !== null) {
+    const r = result as Record<string, unknown>
+    const file = r.file as Record<string, unknown> | undefined
+    if (typeof r.stdout === 'string' || typeof r.stderr === 'string')
+      text = [r.stdout, r.stderr].flatMap(s => (typeof s === 'string' && s.trim() !== '' ? [s.replace(/\s+$/, '')] : [])).join('\n')
+    else if (r.type === 'image') text = '[image]'
+    else if (typeof file?.content === 'string') text = file.content
+    else text = JSON.stringify(result, (_, v: unknown) => (typeof v === 'string' && v.length > 120 ? `${v.slice(0, 120)}…` : v), 1) ?? ''
+  }
+  const lines = text.replace(/\s+$/, '').split(/\r?\n/)
+  const shown = text.trim() === '' ? [] : lines.slice(0, KEPT_LINES).map(l => l.slice(0, KEPT_LINE_CHARS))
+  return { lines: shown, more: Math.max(0, (text.trim() === '' ? 0 : lines.length) - shown.length) }
+}
+
+// The word for a turn that ended without an answer.
+export const stopLabel = (stop: TurnStop): string => (stop === 'aborted' ? 'Interrupted' : stop === 'refusal' ? 'Refused' : 'Error')
 // The `rows` calls the band draws: every one under way first, then the
 // newest done ones, back in the order they started.
 export const feedInView = (feed: readonly FocusAction[], rows: number): FocusAction[] => {
@@ -87,14 +201,6 @@ export const feedInView = (feed: readonly FocusAction[], rows: number): FocusAct
   return feed.filter(a => picked.has(a))
 }
 
-// A prompt long enough to be a task of several steps: twelve words, or more
-// than one line. "yes", "continue" and one-liners get nothing.
-export const wantsList = (text: string): boolean => {
-  const trimmed = text.trim()
-  if (trimmed === '') return false
-  return trimmed.split(/\r?\n/).filter(l => l.trim() !== '').length > 1 || trimmed.split(/\s+/).length >= 12
-}
-
 // Done steps over all steps, in whole percent; a finished task is 100.
 export const progressOf = (t: FocusTask): number => {
   const total = t.steps.length
@@ -103,9 +209,10 @@ export const progressOf = (t: FocusTask): number => {
 }
 
 // "Step 3 of 7": the running step's number, else the first one not done.
+// A finished task reads Done, or how its last turn stopped.
 export const stepCaption = (t: FocusTask): string => {
   const finished = t.doneAt !== null
-  if (finished) return 'Done'
+  if (finished) return t.stoppedBy ? stopLabel(t.stoppedBy) : 'Done'
   const total = t.steps.length
   if (total === 0) return 'Working…'
   const running = t.steps.findIndex(s => s.status === 'in_progress')
