@@ -58,7 +58,7 @@ ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向�
 
 prompt 上方的一条横幅，显示任务标题、计时、进度条和步骤。Focus 开启时，在需要两次以上工具调用的任务开始前，Claude 会把计划发给横幅自己的工具 `focus_progress`，之后每个步骤开始时发送它的编号，所以每一行都会从待办变为进行中再变为完成；会话提供 todo 列表、task 工具或 plan mode 中批准的计划时，它们也会更新横幅。运行中的步骤下方显示最近几次工具调用的动态，按 Claude 自己的描述显示（"Read the settings page and its tests"）：点击某一行（或用 ctrl+x tab 移到它上面）可展开该调用执行的内容和输出的前几行，再点一次收起；这些调用会保留到你的下一个 prompt。Focus 开启时工具调用和结果从对话记录中隐藏，失败或被中断的调用除外；ctrl+o 可查看所有调用的完整内容。回合结束时若仍有待办步骤，横幅会暂停，被中断或出错的回合会显示出来；你的下一个 prompt 让它继续。`[–]` 把它收成一行。颜色：blue、dark、light、green、pink、rainbow，或自定义。
 
-<img src="docs/screenshots/focus-band.png" alt="prompt 上方的 Focus 横幅：任务标题和计时、进度条、带各自计时的步骤，以及正在运行的工具调用" width="720">
+<img src="docs/screenshots/focus-band.png" alt="prompt 上方的 Focus 横幅：任务标题和计时、进度条、带各自计时的步骤，以及运行中步骤下方的工具调用，其中一条已展开，显示它执行的命令和输出的前几行" width="720">
 
 在全屏布局下，Claude Code 的三个未关闭 issue（[#102893](https://github.com/anthropics/claude-code/issues/102893)、[#104197](https://github.com/anthropics/claude-code/issues/104197)、[#104462](https://github.com/anthropics/claude-code/issues/104462)）可能让滚轮跳动，或让隐藏行上的最后一行闪烁。
 
