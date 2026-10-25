@@ -5,6 +5,20 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-24
+
+### Fixed
+
+- On Team and Enterprise logins, every prompt and tool call printed a notice that a cc-esol classic
+  hook was skipped: Claude Code's built-in guard keeps those events from user plugins. cc-esol hooks
+  no classic event any more, so the notice is gone on every account.
+
+### Removed
+
+- The Model page's "Running in" row and the "now" mark on the start-mode chips: only the classic
+  events carry the running permission mode. The start-mode chips, the effort and the model work as
+  before, and shift+tab still switches the running session's mode.
+
 ## [1.0.0] - 2026-10-24
 
 ### Added
@@ -44,5 +58,6 @@ versions follow [Semantic Versioning](https://semver.org/).
   theme as its chip, a ccstatusline chip, and the icon set (Nerd Font, Unicode, auto) last.
 - **`/esol` command** and the corner button that open the pane on a tab.
 
-[Unreleased]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rapha-rodrigues/cc-esol/releases/tag/v1.0.0

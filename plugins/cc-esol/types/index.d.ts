@@ -152,13 +152,11 @@ declare module 'claude-code' {
       themeScroll: number
       themeStatus: string
       effort: Effort | null
-      mode: string | null
       defaultMode: string | null
       isDownloading: boolean
       sessionEffort: Effort | null
       sessionModel: string | null
       paneBg: string | null
-      defaultModeChosen: boolean
       lang: Lang
       englishOn: boolean
       englishEnCutoff: number

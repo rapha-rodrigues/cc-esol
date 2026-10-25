@@ -126,7 +126,7 @@ ESOL 设置里有二十种语言可选，或选 **Other** 并输入名称。语�
 - **一条英语 prompt 没被纠正。** 它里面的日常英语单词太少（简短、满是术语的 prompt）。在 Settings 里调低阈值或最少词数。
 - **Voice 按钮显示 `/voice` 不可用。** 用 claude.ai 账号登录（`/login`）；听写在 API key 或第三方提供商下不可用。
 - **日志一直在变大。** 没有任何机制修剪它。重命名归档即可；下一条目会重新创建文件。超过 4 MiB 后标签页停止预览，Review 会要求先归档。
-- **提示说 cc-esol 的某个 hook 被跳过。** 使用 Team 或 Enterprise 账号登录时，Claude Code 内置的防护（`cc-plugin-sec-default`）会把用户插件挡在 system prompt 和经典 hook 事件之外，并在对话记录中说明。cc-esol 建立在能通过的部分之上，因此 coaching、横幅和其余功能都按描述工作；唯一的损失是 Model 页面的 "Running in" 一行，它永远得不到当前的权限模式（shift+tab 仍可切换）。无需任何配置。
+- **提示说 cc-esol 的某个 hook 被跳过。** 1.0.1 之前的版本使用了两个经典 hook 事件，而在 Team 或 Enterprise 账号上，Claude Code 内置的防护（`cc-plugin-sec-default`）会对用户插件屏蔽这些事件，并在每个 prompt 和每次工具调用时提示。更新插件后提示即消失；cc-esol 在任何账号上的表现都相同。
 - 更多内容见 [docs/english-coach.md](docs/english-coach.md) 和 [docs/statusline.md](docs/statusline.md)。
 
 ## 开发

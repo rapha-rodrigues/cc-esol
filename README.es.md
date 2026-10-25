@@ -126,7 +126,7 @@ Veinte idiomas para elegir en los ajustes de ESOL, u **Other** con el nombre esc
 - **Un prompt en inglés no fue corregido.** Pocas de sus palabras son inglés cotidiano (prompts cortos y llenos de jerga). Baja el umbral o el mínimo de palabras en Settings.
 - **El botón Voice dice que `/voice` no está disponible.** Inicia sesión con una cuenta de claude.ai (`/login`); el dictado no funciona con clave de API ni con un proveedor de terceros.
 - **El registro no deja de crecer.** Nada lo poda. Archívalo con un rename; la siguiente entrada recrea el archivo. Pasados 4 MiB la pestaña deja de mostrar la vista previa y Review pide archivar primero.
-- **Un aviso dice que se omitió un hook de cc-esol.** Con una sesión iniciada en una cuenta Team o Enterprise, la protección integrada de Claude Code (`cc-plugin-sec-default`) mantiene a los plugins del usuario lejos del system prompt y de los eventos de hook clásicos, y lo dice en la transcripción. cc-esol está construido sobre lo que pasa, así que el coaching, la banda y el resto funcionan como se describe; lo único que se pierde ahí es la fila "Running in" de la página Model, que nunca llega a saber el modo de permisos actual (shift+tab sigue cambiándolo). Nada que configurar.
+- **Un aviso dice que se omitió un hook de cc-esol.** Las versiones anteriores a la 1.0.1 usaban dos eventos de hook clásicos que la protección integrada de Claude Code (`cc-plugin-sec-default`) bloquea para los plugins del usuario en cuentas Team y Enterprise, y la protección lo avisaba en cada prompt y cada llamada a herramienta. Actualiza el plugin y el aviso desaparece; cc-esol funciona igual en cualquier cuenta.
 - Más en [docs/english-coach.md](docs/english-coach.md) y [docs/statusline.md](docs/statusline.md).
 
 ## Desarrollo

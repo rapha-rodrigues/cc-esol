@@ -132,6 +132,9 @@ describe('the Model page', () => {
     expect((await pane.find({ key: 'tab-model' }))?.text).toMatch(/◆/)
     for (const level of ['low', 'medium', 'high', 'xhigh', 'max']) expect(await pane.find({ key: `effort:${level}` })).toBeDefined()
     expect((await pane.find({ key: 'start-mode:bypassPermissions' }))?.text).toMatch(/bypass permissions/)
+    // No running-mode row: only the classic hook events carry the mode, and the plugin hooks none.
+    expect(await pane.find({ text: /Running in/ })).toBeUndefined()
+    expect(await pane.find({ text: /^shift\+tab switches the running session$/ })).toBeDefined()
     await hint.press({ key: 'esol-model' })
     expect(await pane.find({ key: 'tab-model' })).toBeUndefined()
     await hint.press({ key: 'esol-model' })

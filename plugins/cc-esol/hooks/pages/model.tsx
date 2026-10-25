@@ -12,11 +12,9 @@ import { readSettings, writeSettings } from '../lib/settings-file'
 import { rainbow, type Frame } from '../ui/frame'
 
 const effortChoice = atom({ plugin: 'cc-esol', key: 'effort' } as const, null)
-const runningMode = atom({ plugin: 'cc-esol', key: 'mode' } as const, null)
 const startMode = atom({ plugin: 'cc-esol', key: 'defaultMode' } as const, null)
 const effortSeen = atom({ plugin: 'cc-esol', key: 'sessionEffort' } as const, null)
 const modelSeen = atom({ plugin: 'cc-esol', key: 'sessionModel' } as const, null)
-const startModePicked = atom({ plugin: 'cc-esol', key: 'defaultModeChosen' } as const, false)
 
 const EFFORT_KEY = 'effort'
 const LAST_EFFORT_KEY = 'lastSessionEffort'
@@ -66,7 +64,6 @@ async function chooseStartMode($: EngineInterface, mode: StartMode) {
   const permissions = (snapshot.data.permissions as Record<string, unknown> | undefined) ?? {}
   await writeSettings($, snapshot, { ...snapshot.data, permissions: { ...permissions, defaultMode: mode } })
   await update($, startMode, () => mode)
-  await update($, startModePicked, () => true)
   $.ui.toast(`New sessions start in ${modeWords(mode)} mode`)
 }
 
@@ -74,10 +71,6 @@ async function chooseStartMode($: EngineInterface, mode: StartMode) {
 
 export async function trackModel($: EngineInterface, id: string) {
   if (id !== (await read($, modelSeen))) await update($, modelSeen, () => id)
-}
-
-export async function trackMode($: EngineInterface, mode: string | undefined) {
-  if (mode !== undefined && mode !== (await read($, runningMode))) await update($, runningMode, () => mode)
 }
 
 // The level a request actually ran at, as the engine reports it.
@@ -103,11 +96,12 @@ export async function drawModeTab($: EngineInterface, e: RenderInput<'Pane'>, ui
   if (e.surface !== 'terminal' && e.surface !== 'desktop') return []
   const { Text, Button } = $.ui.resolve(e)
   const { lng, t, heading, chips, chip, framed } = ui
-  const running = await read($, runningMode)
   const family = familyOf(await read($, modelSeen))
   const level = (await read($, effortChoice)) ?? (await read($, effortSeen))
-  // The start mode marked: the running one until a mode is picked here.
-  const marked = (await read($, startModePicked)) ? await read($, startMode) : (running ?? (await read($, startMode)))
+  // The start mode marked: the one settings.json holds. The running session's
+  // mode is not shown: only the classic hook events carry it, and Claude Code's
+  // built-in guard keeps those from user plugins on Team and Enterprise logins.
+  const marked = await read($, startMode)
   const onModel = (alias: string) => () => chooseModel($, alias).catch((error: unknown) => $.ui.toast(`Could not switch the model: ${String(error)}`))
   const onStartMode = (mode: StartMode) => () => chooseStartMode($, mode).catch((error: unknown) => $.ui.toast(`Could not save the mode: ${String(error)}`))
 
@@ -156,7 +150,6 @@ export async function drawModeTab($: EngineInterface, e: RenderInput<'Pane'>, ui
         <Text color={modeToken(mode)} bold={mode === marked}>
           {modeName(lng, mode)}
         </Text>
-        {mode === running && <Text color={modeToken(mode)}>{` · ${t('now')}`}</Text>}
       </Button>,
     )
 
@@ -168,13 +161,11 @@ export async function drawModeTab($: EngineInterface, e: RenderInput<'Pane'>, ui
     ]),
     heading(t('effort'), meter),
     chips('effort-choices', EFFORT_LEVELS.map(effortChip)),
-    heading(t('runningIn')),
-    <Text key="running-mode">
-      {running === null ? t('runningUnknown') : <Text color={modeToken(running)}>{modeName(lng, running)}</Text>}
-      <Text dimColor> · {t('shiftTab')}</Text>
-    </Text>,
     heading(t('newSessions')),
     chips('start-mode-choices', START_MODES.map(startModeChip)),
+    <Text key="shift-tab" dimColor>
+      {t('shiftTab')}
+    </Text>,
   ]
   if (marked === 'bypassPermissions')
     rows.push(

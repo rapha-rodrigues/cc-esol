@@ -10,7 +10,7 @@ import { loadIcons } from './icons'
 import { phrase, type Phrase } from './lib/i18n'
 import { drawCcslPage, focusCcsl, isCcslPanel, openEditor, scrollCcsl } from './pages/ccsl-editor'
 import { drawFocusBandPage, focusPromptSubmit, focusSessionEnd, focusTurnComplete, loadFocus, registerFocus, registerFocusTool } from './pages/focus'
-import { drawModeTab, loadModel, readEffort, trackEffort, trackMode, trackModel } from './pages/model'
+import { drawModeTab, loadModel, readEffort, trackEffort, trackModel } from './pages/model'
 import { drawSettingsPage } from './pages/settings'
 import { drawStatusLinePage, loadStatusLine } from './pages/statusline'
 import { drawThemesTab, focusThemes, loadThemes, openThemes, readPaneBg, refreshPaneBg, scrollThemesBy, themesSessionEnd } from './pages/themes'
@@ -299,23 +299,6 @@ function registerTurns(on: On) {
     }
     return yield* next(level !== null && e.effort !== undefined ? { ...e, effort: level } : e)
   })
-
-  // The running permission mode, as the engine tells its classic hooks. On a
-  // Team or Enterprise login the built-in guard keeps these events from user
-  // mods: the Model page then says the mode is shown after the next prompt
-  // and never gets to; shift+tab still switches it.
-  on('classic.UserPromptSubmit', async ($, e, next) => {
-    const { permission_mode: mode } = e
-    await trackMode($, mode)
-    return next(e)
-  }).catch(($, e, next) => next(e))
-  on('classic.PostToolUse', async ($, e, next) => {
-    const { permission_mode: mode } = e
-    await trackMode($, mode)
-    // With an effort of ours in force the engine reports ours: note the level only without one.
-    if ((await readEffort($)) === null) await trackEffort($, e.effort?.level)
-    return next(e)
-  }).catch(($, e, next) => next(e))
 }
 
 export const register: Register = on => {

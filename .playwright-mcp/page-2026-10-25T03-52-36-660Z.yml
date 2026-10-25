@@ -1,0 +1,80 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "ClaudeMod" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - navigation [ref=e6]:
+        - link "Browse" [ref=e7] [cursor=pointer]:
+          - /url: /browse
+        - button "Categories" [ref=e9] [cursor=pointer]
+      - button "Search mods... ⌘ K" [ref=e13]:
+        - generic [ref=e14]: Search mods...
+        - generic:
+          - generic: ⌘
+          - text: K
+      - button "Toggle theme" [ref=e15]
+  - main [ref=e16]:
+    - paragraph [ref=e18]: Loading...
+  - contentinfo [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - link "ClaudeMod" [ref=e23] [cursor=pointer]:
+            - /url: /
+          - paragraph [ref=e25]: The home for Claude Code modifications — skills, MCP servers, agents, and more.
+        - generic [ref=e26]:
+          - heading "Categories" [level=3] [ref=e27]
+          - list [ref=e28]:
+            - listitem [ref=e29]:
+              - link "Mods" [ref=e30] [cursor=pointer]:
+                - /url: /browse?category=mod
+            - listitem [ref=e31]:
+              - link "Skills" [ref=e32] [cursor=pointer]:
+                - /url: /browse?category=skill
+            - listitem [ref=e33]:
+              - link "MCP Servers" [ref=e34] [cursor=pointer]:
+                - /url: /browse?category=mcp-server
+            - listitem [ref=e35]:
+              - link "Commands" [ref=e36] [cursor=pointer]:
+                - /url: /browse?category=command
+            - listitem [ref=e37]:
+              - link "Agents" [ref=e38] [cursor=pointer]:
+                - /url: /browse?category=agent
+        - generic [ref=e39]:
+          - heading [level=3] [ref=e40]
+          - list [ref=e41]:
+            - listitem [ref=e42]:
+              - link "Harnesses" [ref=e43] [cursor=pointer]:
+                - /url: /browse?category=harness
+            - listitem [ref=e44]:
+              - link "Hooks" [ref=e45] [cursor=pointer]:
+                - /url: /browse?category=hook
+            - listitem [ref=e46]:
+              - link "Plugins" [ref=e47] [cursor=pointer]:
+                - /url: /browse?category=plugin
+            - listitem [ref=e48]:
+              - link "Configs" [ref=e49] [cursor=pointer]:
+                - /url: /browse?category=config
+            - listitem [ref=e50]:
+              - link "IDE Plugins" [ref=e51] [cursor=pointer]:
+                - /url: /browse?category=ide-plugin
+        - generic [ref=e52]:
+          - heading "Links" [level=3] [ref=e53]
+          - list [ref=e54]:
+            - listitem [ref=e55]:
+              - link "Browse All" [ref=e56] [cursor=pointer]:
+                - /url: /browse
+            - listitem [ref=e57]:
+              - link "Submit a Mod" [ref=e58] [cursor=pointer]:
+                - /url: /submit
+            - listitem [ref=e59]:
+              - link "Claude Code Docs" [ref=e60] [cursor=pointer]:
+                - /url: https://github.com/anthropics/claude-code
+      - generic [ref=e61]:
+        - paragraph [ref=e62]: © 2026 ClaudeMod. Community-maintained.
+        - paragraph [ref=e63]: Not affiliated with Anthropic.
+  - region "Notifications alt+T"
+  - generic [ref=e64]:
+    - heading "Command Palette" [level=2] [ref=e65]
+    - paragraph [ref=e66]: Search for a command to run...
+  - alert [ref=e67]

@@ -124,7 +124,7 @@ Twenty languages to pick from in the ESOL settings, or **Other** with the name t
 - **An English prompt was not coached.** Too few of its words are everyday English (short, jargon-heavy prompts). Lower the cutoff or the minimum words in Settings.
 - **The Voice button says `/voice` is unavailable.** Sign in with a claude.ai account (`/login`); dictation does not work with an API key or a third-party provider.
 - **The log keeps growing.** Nothing prunes it. Archive it with a rename; the next entry recreates the file. Past 4 MiB the tab stops previewing it and Review asks you to archive first.
-- **A notice says a cc-esol hook was skipped.** On a Team or Enterprise login, Claude Code's built-in guard (`cc-plugin-sec-default`) keeps user plugins away from the system prompt and from the classic hook events, and says so in the transcript. cc-esol is built on what passes, so coaching, the band and the rest work as described; the one thing lost there is the Model page's "Running in" row, which never learns the current permission mode (shift+tab still switches it). Nothing to configure.
+- **A notice says a cc-esol hook was skipped.** Versions before 1.0.1 hooked two classic events that Claude Code's built-in guard (`cc-plugin-sec-default`) keeps from user plugins on Team and Enterprise logins, and the guard said so on every prompt and tool call. Update the plugin and the notice is gone; cc-esol works the same on every account.
 - More in [docs/english-coach.md](docs/english-coach.md) and [docs/statusline.md](docs/statusline.md).
 
 ## Develop
