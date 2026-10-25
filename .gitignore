@@ -8,3 +8,6 @@ plugins/*/.claude-plugin/types/
 
 # Logs of any kind
 *.log
+
+# Browser snapshots from the Playwright MCP
+.playwright-mcp/
