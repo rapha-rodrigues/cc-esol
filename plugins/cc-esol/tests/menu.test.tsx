@@ -362,6 +362,7 @@ describe('the Focus band', () => {
       return { result: 'ok' }
     })
     on('tool.call', { tool: 'Edit' }, () => ({ result: 'ok' }))
+    on('tool.list', () => ({ value: [] }))
     const { hint, pane } = await mountAll($)
     const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...bandAt() })
     band = drawn
@@ -430,7 +431,7 @@ describe('the Focus band', () => {
     expect((await describe('TodoWrite')).description).toBe('TodoWrite as the engine wrote it')
   })
 
-  test('while Focus is on, a prompt long enough to be several steps carries the ask for a list; a short one, nothing', async ($, on) => {
+  test('while Focus is on, a prompt long enough to be several steps carries the ask for a list, naming the todo tool the session has; none, nothing', async ($, on) => {
     bareEngine(on)
     mock.clock(on)
     on('env.get', () => ({ value: '/home/me' }))
@@ -438,19 +439,26 @@ describe('the Focus band', () => {
     on('session.model', () => ({ value: 'claude-sonnet-5-5' }))
     on('session.cwd', () => ({ value: '/home/me/p' }))
     on('prompt.submit', (_, e) => ({ text: e.text, context: e.context }))
+    on('ui.invalidate', () => ({ value: undefined }))
+    let tools = ['Bash', 'Read', 'TodoWrite']
+    on('tool.list', () => ({ value: tools.map(name => ({ name, description: name, mcp: false })) }))
     const LONG = 'Reorganize the settings tab: move the icons last, paint the focus chip, and add a chip for the status line'
-    const off = await $.prompt.submit({ text: LONG, wait: false, origin: { kind: 'composer' } })
-    expect(off.context ?? []).toHaveLength(0)
+    const submit = (text: string) => $.prompt.submit({ text, wait: false, origin: { kind: 'composer' } })
+    expect((await submit(LONG)).context ?? []).toHaveLength(0)
 
     const { hint, pane } = await mountAll($)
     await hint.press({ key: 'esol-toggle' })
     await pane.press({ key: 'tab-settings' })
     await pane.press({ key: 'focus-on' })
-    const long = await $.prompt.submit({ text: LONG, wait: false, origin: { kind: 'composer' } })
-    expect(long.context?.some(c => c.startsWith('Focus band:') && c.includes('TodoWrite'))).toBe(true)
-    const lines = await $.prompt.submit({ text: 'Two things:\n1. fix it\n2. test it', wait: false, origin: { kind: 'composer' } })
-    expect(lines.context?.some(c => c.startsWith('Focus band:'))).toBe(true)
-    const short = await $.prompt.submit({ text: 'continue', wait: false, origin: { kind: 'composer' } })
-    expect(short.context ?? []).toHaveLength(0)
+    const ask = (r: { context?: readonly string[] }) => (r.context ?? []).find(c => c.startsWith('Focus band:'))
+    expect(ask(await submit(LONG))).toContain('write the list with TodoWrite:')
+    expect(ask(await submit('Two things:\n1. fix it\n2. test it'))).toBeDefined()
+    expect((await submit('continue')).context ?? []).toHaveLength(0)
+    // A session with the task list instead: the ask names TaskCreate.
+    tools = ['Bash', 'TaskCreate', 'TaskUpdate']
+    expect(ask(await submit(LONG))).toContain('write the list with TaskCreate:')
+    // A session with no todo tool at all: nothing to ask for.
+    tools = ['Bash', 'Read']
+    expect((await submit(LONG)).context ?? []).toHaveLength(0)
   })
 })

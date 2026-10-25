@@ -17,7 +17,8 @@ import {
   taskElapsed,
   toStatus,
   feedInView,
-  FOCUS_NUDGE,
+  focusNudge,
+  todoToolAmong,
   FOCUS_TODO_NOTE,
   wantsList,
   withCall,
@@ -156,10 +157,15 @@ describe('focus nudge', () => {
     expect(wantsList('Reorganize the settings tab: move the icons last, paint the focus chip and add a chip for the status line')).toBe(true)
     expect(wantsList('Two things:\n1. fix it\n2. test it')).toBe(true)
     expect(wantsList('')).toBe(false)
-    expect(FOCUS_NUDGE.startsWith('Focus band:')).toBe(true)
-    expect(FOCUS_NUDGE).toContain('TodoWrite')
-    expect(FOCUS_NUDGE).toContain('more than two tool calls')
-    expect(FOCUS_NUDGE.length).toBeLessThan(320)
+    expect(todoToolAmong(['Bash', 'TodoWrite', 'TaskCreate'])).toBe('TodoWrite')
+    expect(todoToolAmong(['Bash', 'TaskCreate', 'TaskUpdate'])).toBe('TaskCreate')
+    expect(todoToolAmong(['Bash', 'Read'])).toBe(null)
+    for (const tool of ['TodoWrite', 'TaskCreate'] as const) {
+      expect(focusNudge(tool).startsWith('Focus band:')).toBe(true)
+      expect(focusNudge(tool)).toContain(`write the list with ${tool}:`)
+      expect(focusNudge(tool)).toContain('more than two tool calls')
+      expect(focusNudge(tool).length).toBeLessThan(320)
+    }
     // The note on the todo tools says the same, and names TaskUpdate for the task list.
     for (const tool of ['TodoWrite', 'TaskCreate'] as const) {
       expect(FOCUS_TODO_NOTE(tool).startsWith('\n\nFocus band:')).toBe(true)

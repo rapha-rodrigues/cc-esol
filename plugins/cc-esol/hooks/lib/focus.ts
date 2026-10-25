@@ -47,13 +47,20 @@ export const callsText = (t: FocusTask): string => {
 // not in the system prompt: Claude Code's built-in guard keeps a user's
 // plugin out of the system prompt on a Team or Enterprise login, and a line
 // beside the prompt reaches the model everywhere.
-export const FOCUS_NUDGE =
-  'Focus band: a progress band above the prompt mirrors your todo list. Before your first tool call, if this will take more than two tool calls, write the list with TodoWrite (TaskCreate where that is what you have): one item per step, exactly one in_progress, each marked completed as it ends.'
+export type TodoTool = 'TodoWrite' | 'TaskCreate'
+
+// The todo tool the session offers the model, TodoWrite first; null when it
+// has neither, and then there is nothing to ask for.
+export const todoToolAmong = (names: readonly string[]): TodoTool | null =>
+  names.includes('TodoWrite') ? 'TodoWrite' : names.includes('TaskCreate') ? 'TaskCreate' : null
+
+export const focusNudge = (tool: TodoTool): string =>
+  `Focus band: a progress band above the prompt mirrors your todo list. Before your first tool call, if this will take more than two tool calls, write the list with ${tool}: one item per step, exactly one in_progress, each marked completed as it ends.`
 
 // What the band adds to the todo tools' own descriptions while Focus is on
 // (tool.describe, cached in the tool list; nothing per prompt): the same ask,
 // read where the model decides whether to use the tool.
-export const FOCUS_TODO_NOTE = (tool: 'TodoWrite' | 'TaskCreate'): string =>
+export const FOCUS_TODO_NOTE = (tool: TodoTool): string =>
   `\n\nFocus band: a progress band above the prompt mirrors this list while Focus is on. Open the list before the first tool call of any task that will take more than two tool calls, one item per step; keep exactly one in_progress and mark each completed as soon as it ends${tool === 'TaskCreate' ? ' (TaskUpdate)' : ''}. A task of one step needs no list.`
 
 // The band's feed: the last calls of the main loop in the order they

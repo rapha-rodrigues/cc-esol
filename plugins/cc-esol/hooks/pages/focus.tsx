@@ -17,7 +17,7 @@ import {
   callsText,
   clockText,
   feedInView,
-  FOCUS_NUDGE,
+  focusNudge,
   FOCUS_THEMES,
   FOCUS_TODO_NOTE,
   isApprovedPlan,
@@ -33,6 +33,7 @@ import {
   stepTime,
   stepTint,
   taskElapsed,
+  todoToolAmong,
   toStatus,
   wantsList,
   withCall,
@@ -143,7 +144,8 @@ async function replaceSteps($: EngineInterface, make: (prev: FocusStep[]) => Foc
 }
 
 // Each prompt typed continues the waiting task or opens a new one, and a
-// prompt long enough to be several steps carries the ask for a list. From
+// prompt long enough to be several steps carries the ask for a list, naming
+// the todo tool the session has; a session with none gets nothing. From
 // the prompt.submit hook in register.tsx.
 export async function focusPromptSubmit($: EngineInterface, e: PromptSubmitInput): Promise<PromptSubmitInput> {
   const typed = e.text.trim()
@@ -153,7 +155,12 @@ export async function focusPromptSubmit($: EngineInterface, e: PromptSubmitInput
   const underway = await read($, task)
   if (underway !== null && underway.doneAt === null && isWaiting(underway)) await continueTask($)
   else await openTask($, promptTitle)
-  return wantsList(typed) ? { ...e, context: [...(e.context ?? []), FOCUS_NUDGE] } : e
+  if (!wantsList(typed)) return e
+  let tool: ReturnType<typeof todoToolAmong> = null
+  try {
+    tool = todoToolAmong((await $.tool.list()).map(t => t.name))
+  } catch {}
+  return tool === null ? e : { ...e, context: [...(e.context ?? []), focusNudge(tool)] }
 }
 
 // The turn's end: waiting when steps are still pending (the clock pauses),
@@ -201,7 +208,11 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
   )
   const paused = isWaiting(t)
   const percent = progressOf(t)
-  const mark = t.doneAt === null ? '✶' : '✓'
+  // The band's mark before the title: the brain while the task runs, the
+  // done mark once it is over; both from the icon set.
+  const brain = await glyph($, 'brain')
+  const doneMark = await glyph($, 'done')
+  const mark = t.doneAt === null ? brain : doneMark
 
   // The bar takes the room the title, the caption and the percent leave.
   const columns = Math.max(e.props.bodyColumns ?? 80, 30)
@@ -233,8 +244,6 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
       </Box>
     )
 
-  const brain = await glyph($, 'brain')
-  const doneMark = await glyph($, 'done')
   const runningMark = await glyph($, 'running')
   // The feed: the last calls of the turn, each as Claude described it, the
   // ones done dimmed and the one under way in the band's color with its

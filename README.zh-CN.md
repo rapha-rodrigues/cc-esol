@@ -37,7 +37,7 @@ ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向�
 
 **它的成本**
 
-- Themes、Model、Status line、Voice 和 Icons 不消耗 token：它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。Focus 开启时，会在十二个词以上或多行的 prompt 旁边附上一行不到 320 个字符的文字，请 Claude 在任务需要两次以上工具调用时先打开 todo 列表，并在 todo 工具自身的描述上附加同样的说明（位于缓存的工具列表中，每个 prompt 不增加任何内容）；更短的 prompt 不附加任何内容，Claude 之后发出的 todo 调用是它自己的，和任何任务中一样。
+- Themes、Model、Status line、Voice 和 Icons 不消耗 token：它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。Focus 开启且会话提供 todo 工具时，会在十二个词以上或多行的 prompt 旁边附上一行不到 320 个字符的文字，请 Claude 在任务需要两次以上工具调用时先打开 todo 列表，并在 todo 工具自身的描述上附加同样的说明（位于缓存的工具列表中，每个 prompt 不增加任何内容）；更短的 prompt 不附加任何内容，Claude 之后发出的 todo 调用是它自己的，和任何任务中一样。
 - 插件从不修改 Claude Code 的 system prompt：它对 Claude 说的话随自己工具的描述以及你的 prompt 一起传送。
 - ESOL 不是免费的。coaching 开启时，教练规则随插件自己的 `english_log` 工具的描述一起传送（连同描述其余部分不到 4,096 个字符），位于每次请求被缓存的工具列表中，而不在历史里。每个被纠正的 prompt 多带一行约 160 个字符，即门槛的测量结果。每次纠正是一次工具调用，参数是你的原文、改写和原因，这次调用会像其他调用一样留在对话里。coaching 关闭时什么都不会添加，工具退到 ToolSearch 之后等待。
 - 用固定的十条 prompt 脚本在 coaching 关闭和开启、相同模型和版本下测量：见下文的 [实测成本](#实测成本)。
