@@ -5,6 +5,24 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-25
+
+### Fixed
+
+- A write to `~/.claude/settings.json` (a theme, the status line, the start mode) compared the file
+  with what the page had read before the replace took its lock, so an edit another program made in
+  between could be overwritten. The comparison is now the replace's last step before the move,
+  under its lock, and a file that changed is left as it is, a file created meanwhile included. It
+  is best effort against writers that do not take cc-esol's lock, which can still land in the
+  instant between that comparison and the move; Windows has no lock at all.
+- The Layout Editor's Save goes ahead only while the ccstatusline config is still the text its
+  candidate was built from. An `updatemessage` ccstatusline rewrote after that is kept, and Save
+  says the file changed outside the editor, where it used to write the older message back.
+
+### Changed
+
+- The `esol` marketplace has a description, so `claude plugin validate .` passes with no warning.
+
 ## [1.0.1] - 2026-10-24
 
 ### Fixed
@@ -58,6 +76,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   theme as its chip, a ccstatusline chip, and the icon set (Nerd Font, Unicode, auto) last.
 - **`/esol` command** and the corner button that open the pane on a tab.
 
-[Unreleased]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rapha-rodrigues/cc-esol/releases/tag/v1.0.0

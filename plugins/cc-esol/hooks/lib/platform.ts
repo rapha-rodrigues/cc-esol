@@ -38,21 +38,31 @@ export async function hasTool($: EngineInterface, name: string): Promise<boolean
 // 0600; a new file is made private. A `mkdir` lock beside the file keeps two
 // of these from interleaving (exit 75 while another holds it; a lock older
 // than a minute is taken over). `token` makes the sibling's name unique.
+// `expect`, when given, is what the file must still be: the path of a file
+// holding the text read, or `-` for a file that did not exist. That check is
+// the last step before the move, under the lock; a file that changed is left
+// as it is (exit 76). The expect file is removed on the way out.
 export const REPLACE_LOCKED_EXIT = 75
+export const REPLACE_CHANGED_EXIT = 76
+const REPLACE_CLEANUP = 'rm -f -- "$tmp"; case $expect in ""|-) ;; *) rm -f -- "$expect" ;; esac'
 const REPLACE_SCRIPT = [
   'set -e',
-  'f=$1; tmp="$1.tmp-$2"; lock="$1.cc-esol.lock"',
+  'f=$1; tmp="$1.tmp-$2"; lock="$1.cc-esol.lock"; expect=${3-}',
+  `trap '${REPLACE_CLEANUP}' EXIT`,
   'if ! mkdir "$lock" 2>/dev/null; then',
   '  if [ -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then rmdir "$lock" 2>/dev/null; mkdir "$lock" 2>/dev/null || exit 75; else exit 75; fi',
   'fi',
-  'trap \'rmdir "$lock" 2>/dev/null\' EXIT',
+  `trap '${REPLACE_CLEANUP}; rmdir "$lock" 2>/dev/null' EXIT`,
   'umask 077',
   'if [ -f "$f" ]; then cp -p -- "$f" "$tmp"; fi',
   'cat > "$tmp"',
+  'if [ "$expect" = - ]; then [ ! -e "$f" ] || exit 76',
+  'elif [ -n "$expect" ]; then cmp -s -- "$expect" "$f" || exit 76; fi',
   'mv -f -- "$tmp" "$f"',
 ].join('\n')
-export function replaceFileArgv(path: string, token: string = Math.random().toString(36).slice(2, 8)): string[] {
-  return ['sh', '-c', REPLACE_SCRIPT, 'sh', path, token]
+export function replaceFileArgv(path: string, token: string = Math.random().toString(36).slice(2, 8), expect?: string): string[] {
+  const argv = ['sh', '-c', REPLACE_SCRIPT, 'sh', path, token]
+  return expect === undefined ? argv : [...argv, expect]
 }
 
 // A private copy that keeps the source's mode (backups, candidates).

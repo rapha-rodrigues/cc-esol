@@ -225,7 +225,8 @@ const COMMAND = { type: 'command', command: 'npx -y ccstatusline@latest', paddin
 
 const engineBeneath = (on: On, opts: Beneath) => {
   const files = new Map<string, string>()
-  const steer: { onRead?: (path: string) => void } = {}
+  // Called before each read, and before each process runs.
+  const steer: { onRead?: (path: string) => void; onRun?: (argv: string[]) => void } = {}
   files.set(SETTINGS, JSON.stringify(opts.settings ?? { statusLine: COMMAND }, null, 2) + '\n')
   if (opts.config) files.set(CONFIG, opts.config)
   for (const [path, text] of Object.entries(opts.extraFiles ?? {})) files.set(path, text)
@@ -265,10 +266,19 @@ const engineBeneath = (on: On, opts: Beneath) => {
     const argv = [...e.argv]
     const stdin = e.init?.stdin
     runs.push({ argv, stdin })
+    steer.onRun?.(argv)
     const script = argv[0] === 'sh' ? (argv[2] ?? '') : ''
     const tool = argv[0] === 'sh' && script.startsWith('command -v') ? argv[4] : argv[0] === 'cmd' && argv[3] === 'where' ? argv[4] : null
     if (tool !== null) return { value: { ...OK, exitCode: (opts.tools ?? ['npx']).includes(tool!) ? 0 : 1 } }
     if (script.includes('cat > "$tmp"')) {
+      // The file must still be what the editor last read, or it stays as it is.
+      const expect = argv[6]
+      if (expect !== undefined) {
+        const now = files.get(argv[4]!)
+        const changed = expect === '-' ? now !== undefined : now !== files.get(expect)
+        if (expect !== '-') files.delete(expect)
+        if (changed) return { value: { ...OK, exitCode: 76 } }
+      }
       files.set(argv[4]!, stdin ?? '')
       writes.push({ path: argv[4]!, text: stdin ?? '' })
       return { value: OK }
@@ -517,6 +527,24 @@ describe('ccstatusline editor page', () => {
     const saved = parsed(files)
     expect(saved.updatemessage).toEqual({ seen: 2 })
     expect(saved.lines[0]![0]).not.toHaveProperty('bold')
+  })
+
+  test('an update message rewritten after the candidate was built is kept: Save refuses instead of writing the older one back', async ($, on) => {
+    const { files, steer } = engineBeneath(on, { config: serialize(SAMPLE) })
+    await start($)
+    const menu = await open($)
+    await menu.press({ key: 'ccsl-w:0' })
+    await menu.press({ key: 'ccsl-bold' })
+    await menu.press({ key: 'ccsl-widget-back' })
+    // ccstatusline rewrites its message while the editor backs the file up: the
+    // candidate already carries seen: 1, and the last read sees only a message change.
+    const outside = serialize({ ...sample(), updatemessage: { seen: 2 } })
+    steer.onRun = argv => {
+      if (argv[2] === 'umask 077 && cp -p -- "$1" "$2"') files.set(CONFIG, outside)
+    }
+    await menu.press({ key: 'ccsl-save' })
+    expect(await menu.find({ type: 'Text', text: /changed outside/ })).toBeDefined()
+    expect(files.get(CONFIG)).toBe(outside)
   })
 
   // A dry run that fails blocks the write and says why.

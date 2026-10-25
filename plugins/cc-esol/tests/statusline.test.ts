@@ -50,6 +50,11 @@ describe('ccstatusline, pure', () => {
     expect(replaceFileArgv('/x/settings.json', 'tok').slice(-2)).toEqual(['/x/settings.json', 'tok'])
     expect(replaceFileArgv('/x/settings.json')[2]).toContain('mkdir "$lock"')
     expect(replaceFileArgv('/x/settings.json')[2]).toContain('cp -p')
+    // What the file must still be travels as a third argument, compared last, under the lock.
+    expect(replaceFileArgv('/x/settings.json', 'tok', '-').slice(-3)).toEqual(['/x/settings.json', 'tok', '-'])
+    const script = replaceFileArgv('/x/settings.json')[2]!
+    expect(script.indexOf('cmp -s')).toBeGreaterThan(script.indexOf('mkdir "$lock"'))
+    expect(script.indexOf('cmp -s')).toBeLessThan(script.indexOf('mv -f'))
   })
 
 })
@@ -60,8 +65,9 @@ type Beneath = { settings?: Record<string, unknown>; config?: string | null; too
 
 const engineBeneath = (on: On, opts: Beneath) => {
   const files = new Map<string, string>()
-  // Called before each read: a test can change a file between a page's read and its write.
-  const steer: { onRead?: (path: string) => void } = {}
+  // Called before each read, and before each process runs: a test can change
+  // a file between a page's read and its write, or after its last read.
+  const steer: { onRead?: (path: string) => void; onRun?: (argv: string[]) => void } = {}
   if (opts.settings !== undefined) files.set(SETTINGS, JSON.stringify(opts.settings, null, 2) + '\n')
   if (opts.config) files.set(CONFIG, opts.config)
   const writes: { path: string; text: string }[] = []
@@ -91,11 +97,25 @@ const engineBeneath = (on: On, opts: Beneath) => {
   on('process.run', (_, e) => {
     const argv = [...e.argv]
     runs.push({ argv, stdin: e.init?.stdin })
+    steer.onRun?.(argv)
     // `command -v <tool>` / `where <tool>`
     const tool = argv[0] === 'sh' && argv[2]?.startsWith('command -v') ? argv[4] : argv[0] === 'cmd' && argv[3] === 'where' ? argv[4] : null
     if (tool !== null) return { value: { ...OK, exitCode: (opts.tools ?? []).includes(tool!) ? 0 : 1 } }
-    // the one-step replace: the stdin lands in the file
+    // a private file from stdin: the text a replace expects to find
+    if (argv[0] === 'sh' && argv[2] === 'umask 077 && cat > "$1"') {
+      files.set(argv[4]!, e.init?.stdin ?? '')
+      return { value: OK }
+    }
+    // the one-step replace: the stdin lands in the file, unless the file is no
+    // longer what the caller expected (the expect file goes either way)
     if (argv[0] === 'sh' && argv[2]?.includes('cat > "$tmp"')) {
+      const expect = argv[6]
+      if (expect !== undefined) {
+        const now = files.get(argv[4]!)
+        const changed = expect === '-' ? now !== undefined : now !== files.get(expect)
+        if (expect !== '-') files.delete(expect)
+        if (changed) return { value: { ...OK, exitCode: 76 } }
+      }
       files.set(argv[4]!, e.init?.stdin ?? '')
       writes.push({ path: argv[4]!, text: e.init?.stdin ?? '' })
       return { value: OK }
@@ -226,6 +246,21 @@ describe('status line page', () => {
     await menu.press({ key: 'statusline-install' })
     expect(writes.filter(w => w.path === SETTINGS)).toHaveLength(0)
     expect(JSON.parse(files.get(SETTINGS)!)).toEqual({ theme: 'light' })
+  })
+
+  test('an edit that lands after the last read is kept: the replace compares under its lock and refuses', async ($, on) => {
+    const { files, writes, steer } = engineBeneath(on, { settings: {}, config: '{}', tools: ['npx'] })
+    await $.session.start({ cwd: `${HOME}/p`, surface: 'terminal', isInteractive: true })
+    const menu = await open($)
+    // Something else writes the file once the page's reads are done, as the replace starts.
+    steer.onRun = argv => {
+      if (argv[2]?.includes('cat > "$tmp"')) files.set(SETTINGS, '{"theme":"light"}\n')
+    }
+    await menu.press({ key: 'statusline-install' })
+    expect(writes.filter(w => w.path === SETTINGS)).toHaveLength(0)
+    expect(JSON.parse(files.get(SETTINGS)!)).toEqual({ theme: 'light' })
+    // The text it expected went to a private file beside the settings, gone afterwards.
+    expect([...files.keys()].some(p => p.includes('.cc-esol.expect-'))).toBe(false)
   })
 
   test('on Windows the tools are looked up with where and the file is written directly', async ($, on) => {

@@ -1,5 +1,6 @@
 {
   "name": "esol",
+  "description": "cc-esol, a Claude Code sidebar for learning English from your daily prompts.",
   "owner": {
     "name": "Rapha Rodrigues"
   },

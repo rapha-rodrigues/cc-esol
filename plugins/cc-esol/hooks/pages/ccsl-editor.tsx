@@ -294,7 +294,8 @@ const changedOutside = () => new Error('The file changed outside the editor (the
 // Save: the local check, the file compared with the draft's reading of it,
 // the candidate (the draft with the `updatemessage` now on disk) dry-run,
 // a backup, the compare again, the one-step replace, the draft reloaded.
-// The bytes the dry run saw are the bytes written.
+// The bytes the dry run saw are the bytes written, and the replace goes ahead
+// only while the file is still the text the candidate was built from.
 async function save($: EngineInterface, mode: 'preview' | 'blind') {
   await run($, async () => {
     const d = await read($, draft)
@@ -316,7 +317,7 @@ async function save($: EngineInterface, mode: 'preview' | 'blind') {
     }
     if (disk !== null) await backup($, d.path, win)
     if (!sameOnDisk(d.text, await readDisk($, d.path))) throw changedOutside()
-    await replaceFile($, d.path, candidate)
+    await replaceFile($, d.path, candidate, { text: disk, changed: changedOutside })
     await loadDraft($)
     await update($, message, () => ({ kind: 'ok', text: mode === 'preview' ? 'Saved: the status line follows at its next refresh' : 'Saved without a preview' }) satisfies CcslMessage)
     await detectStatusLine($)
