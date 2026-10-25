@@ -326,12 +326,12 @@ describe('the Focus band', () => {
     await $.tool.call({ tool: 'TodoWrite', agentId: 'a1', todos: [{ content: 'Agent step', status: 'in_progress', activeForm: 'Agent stepping' }] } as never)
     expect(await drawn.find({ text: /Agent step/ })).toBeUndefined()
     expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
-    await $.turn.complete({ reason: 'answer', text: 'agent done', agentId: 'a1' } as never)
+    await $.turn.complete({ answer: '', reason: 'answer', text: 'agent done', agentId: 'a1' } as never)
     expect(await drawn.find({ text: /Paused/ })).toBeUndefined()
     expect(await drawn.find({ text: /✓\s+Bash  Run the tests/ })).toBeDefined()
 
     await clock.advance(5_000)
-    await $.turn.complete({ reason: 'answer', text: 'so far' } as never)
+    await $.turn.complete({ answer: '', reason: 'answer', text: 'so far' } as never)
     expect(await drawn.find({ text: /Paused/ })).toBeDefined()
     expect(await drawn.find({ text: /^paused$/ })).toBeDefined()
     expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
@@ -341,7 +341,7 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /Build the dashboard/ })).toBeDefined()
     expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
     await todos(['Plan', 'completed', 'Planning'], ['Fetch data', 'completed', 'Fetching data'], ['Draw charts', 'completed', 'Drawing charts'], ['Test', 'completed', 'Testing'])
-    await $.turn.complete({ reason: 'answer', text: 'all done' } as never)
+    await $.turn.complete({ answer: '', reason: 'answer', text: 'all done' } as never)
     expect(await drawn.find({ text: /100%/ })).toBeDefined()
     expect(await drawn.find({ text: /Done/ })).toBeDefined()
     await todos(['Plan', 'completed', 'Planning'], ['Fetch data', 'in_progress', 'Fetching data'], ['Draw charts', 'pending', 'Drawing charts'], ['Test', 'completed', 'Testing'], ['Docs', 'pending', 'Docs'], ['Review', 'pending', 'Review'], ['Ship', 'pending', 'Ship'])
@@ -407,7 +407,7 @@ describe('the Focus band', () => {
     await pane.press({ key: 'settings-icons-unicode' })
 
     await clock.advance(3_000)
-    await $.turn.complete({ reason: 'answer', text: 'done' } as never)
+    await $.turn.complete({ answer: '', reason: 'answer', text: 'done' } as never)
     expect(await drawn.find({ text: /Done/ })).toBeDefined()
     // The calls stay after the turn, open to inspection, until the next prompt.
     expect(await drawn.find({ text: /✓\s+Edit  three.ts/ })).toBeDefined()
@@ -511,10 +511,34 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /Other plan/ })).toBeUndefined()
     expect(await drawn.find({ text: /Step 2 of 3/ })).toBeDefined()
 
+    // Only the running row is tinted; the done one keeps its green dot alone.
+    const tinted = async () => (await drawn.findAll({ type: 'Box' })).filter(b => b.props.backgroundColor !== undefined).length
+    expect(await tinted()).toBe(1)
+
     expect(await progress({ done: true })).toBe('Band: 3 of 3 steps done.')
     expect(await drawn.find({ text: /100%/ })).toBeDefined()
-    await $.turn.complete({ reason: 'answer', text: 'shipped' } as never)
+    expect(await tinted()).toBe(0)
+    await $.turn.complete({ answer: '', reason: 'answer', text: 'shipped' } as never)
     expect(await drawn.find({ text: /Done/ })).toBeDefined()
+
+    // A turn that answers on the last step finishes it: no done call needed.
+    await $.prompt.submit({ text: 'Tidy the notes', wait: false, origin: { kind: 'composer' } })
+    await progress({ steps: ['Sort them', 'Merge them'], current: 1 })
+    await progress({ current: 2 })
+    await $.turn.complete({ answer: '', reason: 'answer', text: 'tidied' } as never)
+    expect(await drawn.find({ text: /^Done\s*$/ })).toBeDefined()
+    expect(await drawn.find({ text: /100%/ })).toBeDefined()
+    expect(await drawn.find({ text: /^✓\s+2$/ })).toBeDefined()
+    // Ending earlier, the band pauses; interrupted on the last step, it says so.
+    await $.prompt.submit({ text: 'Two more', wait: false, origin: { kind: 'composer' } })
+    await progress({ steps: ['One', 'Two'], current: 1 })
+    await $.turn.complete({ answer: '', reason: 'answer', text: 'half' } as never)
+    expect(await drawn.find({ text: /^Paused$/ })).toBeDefined()
+    await $.prompt.submit({ text: 'go on', wait: false, origin: { kind: 'composer' } })
+    await progress({ current: 2 })
+    await $.turn.complete({ answer: '', reason: 'aborted', text: '' } as never)
+    expect(await drawn.find({ text: /^Interrupted$/ })).toBeDefined()
+    expect(await drawn.find({ text: /^Done\s*$/ })).toBeUndefined()
 
     await pane.press({ key: 'focus-off' })
     expect((await describe()).isDeferred).toBe(true)
@@ -559,7 +583,7 @@ describe('the Focus band', () => {
     await pane.press({ key: 'focus-on' })
     for (const [reason, word] of [['aborted', 'Interrupted'], ['refusal', 'Refused'], ['error', 'Error']] as const) {
       await $.prompt.submit({ text: 'Rename the module', wait: false, origin: { kind: 'composer' } })
-      await $.turn.complete({ reason, text: '' } as never)
+      await $.turn.complete({ answer: '', reason, text: '' } as never)
       expect(await drawn.find({ text: new RegExp(`^${word}$`) })).toBeDefined()
       expect(await drawn.find({ text: /✗ Rename the module/ })).toBeDefined()
       expect(await drawn.find({ text: /Done/ })).toBeUndefined()

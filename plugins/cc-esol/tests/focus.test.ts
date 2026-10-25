@@ -19,6 +19,7 @@ import {
   feedInView,
   canPost,
   detailOf,
+  endsOnLastStep,
   FOCUS_MARKER,
   FOCUS_TOOL,
   FOCUS_TOOL_DESCRIPTION,
@@ -118,8 +119,11 @@ describe('focus arithmetic', () => {
     expect(stepTime(c, 31_000)).toBe('')
     const moved = stampSteps(second, [{ id: 'x', text: 'A', status: 'completed' }], 50_000, 0)
     expect(moved[0]).toMatchObject({ startedAt: 10_000, doneAt: 25_000 })
-    expect(stepTint('completed', '#3b82f6', false)).not.toBe(stepTint('in_progress', '#3b82f6', false))
-    expect(stepTint('pending', '#3b82f6', true)).toMatch(/^#[0-9a-f]{6}$/)
+    // Only the running row is tinted, in the band's color; done and pending rows are not.
+    expect(stepTint('in_progress', '#f472b6', false)).toMatch(/^#[0-9a-f]{6}$/)
+    expect(stepTint('in_progress', '#f472b6', true)).not.toBe(stepTint('in_progress', '#f472b6', false))
+    expect(stepTint('completed', '#f472b6', false)).toBeUndefined()
+    expect(stepTint('pending', '#f472b6', true)).toBeUndefined()
   })
 
   test('a plan approved in plan mode is read by its structure, and only when it is this conversation\'s own', () => {
@@ -203,6 +207,16 @@ describe('focus progress', () => {
     // A plan from another source is advanced by number too.
     const fromPlan = [{ id: 'plan-0', text: 'One', status: 'pending' as const }, { id: 'plan-1', text: 'Two', status: 'pending' as const }]
     expect(stepsAfterPost(fromPlan, progressPost({ current: 2 })!)!.map(s => s.status)).toEqual(['completed', 'in_progress'])
+  })
+
+  test('a turn that answers on the last step of a focus_progress plan finishes it; earlier, or another source, it does not', async () => {
+    const t = (source: FocusTask['source'], ...statuses: StepStatus[]): FocusTask => ({ ...taskOf(...statuses), source })
+    expect(endsOnLastStep(t('progress', 'completed', 'completed', 'in_progress'))).toBe(true)
+    expect(endsOnLastStep(t('progress', 'completed', 'in_progress', 'pending'))).toBe(false)
+    expect(endsOnLastStep(t('progress', 'pending', 'completed', 'in_progress'))).toBe(false)
+    expect(endsOnLastStep(t('todo', 'completed', 'in_progress'))).toBe(false)
+    expect(endsOnLastStep(t('progress'))).toBe(false)
+    expect(FOCUS_TOOL_DESCRIPTION).toContain('send nothing to close it')
   })
 
   test('the band\'s own tool owns a task once it posts; the other sources give way to it', async () => {

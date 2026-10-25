@@ -60,7 +60,8 @@ export const FOCUS_TOOL_DESCRIPTION = [
   'Updates the Focus band, the progress band the user watches above the prompt while Focus is on: the user does not see your tool calls or their output then, only your text and this band.',
   'Use it for a task that will take more than two tool calls; a shorter one needs no plan.',
   'First call, before the task\'s first tool call (or right after a plan is approved): steps, your plan in order as short steps of a few words each, and current: 1.',
-  'Then, as each step starts, send only current (its number, counting from 1) in the same message as that step\'s first tool call, never in a message of its own; when the last step ends, send done: true.',
+  'Then, as each step starts, send only current (its number, counting from 1) in the same message as that step\'s first tool call, never in a message of its own.',
+  'The band finishes the task when your turn ends on its last step: send nothing to close it. Send done: true only when the work is done and the turn goes on with other tool calls.',
   'Send steps again only when the plan changes. Main conversation only, never from a subagent.',
 ].join(' ')
 
@@ -130,6 +131,11 @@ export const progressReply = (steps: readonly FocusStep[]): string => {
   return running >= 0 ? `Band: step ${running + 1} of ${steps.length}.` : `Band: ${doneSteps(steps)} of ${steps.length} steps done.`
 }
 const doneSteps = (steps: readonly FocusStep[]) => steps.filter(s => s.status === 'completed').length
+
+// A focus_progress task whose last step is running and every other one
+// done: what a turn that answers then has finished.
+export const endsOnLastStep = (t: FocusTask): boolean =>
+  t.source === 'progress' && t.steps.length > 0 && t.steps.at(-1)!.status === 'in_progress' && t.steps.slice(0, -1).every(s => s.status === 'completed')
 
 // Which source may post the task's steps: the band's own tool owns a task
 // once it posts, and the others give way to it; among the others the latest
@@ -285,13 +291,15 @@ export const stepTime = (step: FocusStep, now: number): string =>
       ? clockText(now - step.startedAt)
       : ''
 
-// A row's dot and tint by state: green done, the Focus color running, gray
-// pending; the tint a shade of that over black, or over white on the light theme.
+// A row's dot by state: green done, the Focus color running, gray pending.
+// Only the running row is tinted, a shade of the Focus color over black (or
+// over white on the light theme), so the band reads in its own color and
+// the green stays on the dots.
 export const STEP_GREEN = '#22c55e'
 export const STEP_GRAY = '#6b7280'
 export const stepColor = (status: StepStatus, bar: string): string => (status === 'completed' ? STEP_GREEN : status === 'in_progress' ? bar : STEP_GRAY)
-export const stepTint = (status: StepStatus, bar: string, isLightTheme: boolean): string =>
-  blend(isLightTheme ? '#ffffff' : '#000000', stepColor(status, bar), isLightTheme ? 0.18 : 0.22)
+export const stepTint = (status: StepStatus, bar: string, isLightTheme: boolean): string | undefined =>
+  status === 'in_progress' ? blend(isLightTheme ? '#ffffff' : '#000000', bar, isLightTheme ? 0.18 : 0.22) : undefined
 
 // The task's clock: paused time left out, frozen while waiting or done.
 export const taskElapsed = (t: FocusTask, now: number): number => (t.doneAt ?? t.waitingAt ?? now) - t.startedAt - (t.pausedMs ?? 0)

@@ -20,6 +20,7 @@ import {
   canPost,
   clockText,
   detailOf,
+  endsOnLastStep,
   feedInView,
   FEED_DETAIL_LINES,
   FOCUS_MARKER,
@@ -194,17 +195,21 @@ export async function focusPromptSubmit($: EngineInterface, e: PromptSubmitInput
 }
 
 // The turn's end: waiting when steps are still pending (the clock pauses),
-// done when every step is or there were none. A turn that ended without an
-// answer (interrupted, refused, an error) says so, unless every step of its
-// list was done: an empty list is no proof of success. With calls on the
-// feed the band stays, open to inspection, until the next prompt; with
-// none, Done stays a moment and clears. From the turn.complete hook.
+// done when every step is or there were none. A turn that answered while
+// focus_progress had its last step running finishes that step: the tool
+// needs no call of its own to say done. A turn that ended without an answer
+// (interrupted, refused, an error) says so, unless every step of its list
+// was done: an empty list is no proof of success. With calls on the feed
+// the band stays, open to inspection, until the next prompt; with none,
+// Done stays a moment and clears. From the turn.complete hook.
 export async function focusTurnComplete($: EngineInterface, reason: TurnStop | 'answer' = 'answer') {
   stopClock()
-  const underway = await read($, task)
-  if (underway === null || underway.doneAt !== null || isWaiting(underway)) return
+  const before = await read($, task)
+  if (before === null || before.doneAt !== null || isWaiting(before)) return
   const at = await $.clock.now()
   const stop = reason === 'answer' ? null : reason
+  if (stop === null && endsOnLastStep(before)) await replaceSteps($, 'progress', steps => steps.map(s => ({ ...s, status: 'completed' })))
+  const underway = (await read($, task)) ?? before
   await update($, now, () => at)
   if (underway.steps.some(s => s.status !== 'completed')) {
     await update($, task, t => (t === null ? t : { ...t, waitingAt: at, stoppedBy: stop }))
