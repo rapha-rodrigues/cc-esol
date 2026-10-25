@@ -69,6 +69,8 @@ const DONE_LINGER_MS = 8000
 const STEP_ROWS = 6
 const FEED_ROWS = 4
 const FEED_ROWS_UNDER_STEP = 2
+// Columns the band leaves free at the right of the body.
+const BAND_SLACK = 1
 
 // Settings ---------------------------------------------------------------------
 
@@ -252,7 +254,11 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
   const { colors } = look
   const isFolded = await read($, collapsed)
   const clock = await read($, now)
-  const frameProps = { borderStyle: 'round', borderColor: colors.border, paddingX: 1 } as const
+  // The band stops one column short of the body: a glyph the terminal draws
+  // a cell wider than Claude Code measures then still fits its line, where a
+  // full-width line would wrap and leave the rows below drawn a line off.
+  const columns = Math.max((e.props.bodyColumns ?? 80) - BAND_SLACK, 30)
+  const frameProps = { borderStyle: 'round', borderColor: colors.border, paddingX: 1, width: columns } as const
   const titleText = (text: string) => (
     <Text color={colors.text} bold wrap="truncate">
       {text}
@@ -276,7 +282,6 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
   const pauseWord = t.stoppedBy ? stopLabel(t.stoppedBy) : 'Paused'
 
   // The bar takes the room the title, the caption and the percent leave.
-  const columns = Math.max(e.props.bodyColumns ?? 80, 30)
   const titleCells = isFolded ? Math.min(30, t.title.length + 2) : 0
   const barWidth = Math.max(8, columns - 26 - titleCells)
   const { filled, runs } = barRuns(look.theme, colors.bar, barWidth, percent)

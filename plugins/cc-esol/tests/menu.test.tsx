@@ -311,7 +311,7 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /^0s$/ })).toBeDefined()
     expect(await drawn.find({ text: /Next/ })).toBeUndefined()
     await pane.press({ key: 'settings-icons-nerd' })
-    expect(await drawn.find({ text: /\u{F09D1}\s+2/u })).toBeDefined()
+    expect(await drawn.find({ text: /\uEE9C\s+2/ })).toBeDefined()
     expect(await drawn.find({ text: /🧠/ })).toBeUndefined()
     // Back to Unicode: the feed's marks follow the icon set too.
     await pane.press({ key: 'settings-icons-unicode' })
@@ -511,6 +511,9 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /Other plan/ })).toBeUndefined()
     expect(await drawn.find({ text: /Step 2 of 3/ })).toBeDefined()
 
+    // The band stops a column short of the body (80): a glyph drawn wider than measured cannot wrap a line.
+    const frame = (await drawn.findAll({ type: 'Box' })).find(b => b.props.borderStyle === 'round')
+    expect(frame?.props.width).toBe(79)
     // Only the running row is tinted; the done one keeps its green dot alone.
     const tinted = async () => (await drawn.findAll({ type: 'Box' })).filter(b => b.props.backgroundColor !== undefined).length
     expect(await tinted()).toBe(1)

@@ -22,7 +22,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   own `focus_progress` tool, then only the number of each step as it starts, in the same message as
   that step's first tool call, and a turn that ends on the last step finishes the task with no call
   of its own; todos, tasks and an approved plan feed it too where the session has them. Only the
-  running step's row is tinted, in the band's color; a done step keeps a green dot. The tool sits in the tool list while Focus is on and behind ToolSearch while off, and each
+  running step's row is tinted, in the band's color; a done step keeps a green dot. The band stops
+  one column short of the screen's edge, and the Nerd Font icons come from the Basic Multilingual
+  Plane, so a glyph a terminal draws wider than measured cannot wrap a line and leave stray
+  characters behind. The tool sits in the tool list while Focus is on and behind ToolSearch while off, and each
   prompt typed while on carries one line pointing at it. A feed of the last tool calls as Claude
   described them sits under the running step; a row opens on what its call ran and the first lines
   it printed, and the calls stay until the next prompt. Each step and each call carries one mark

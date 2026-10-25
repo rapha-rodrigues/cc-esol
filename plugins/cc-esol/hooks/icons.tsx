@@ -13,12 +13,15 @@ const icons = atom({ plugin: 'cc-esol', key: 'icons' } as const, 'auto')
 
 export const ICON_SETS: readonly IconSet[] = ['auto', 'nerd', 'unicode']
 export type IconName = 'brain' | 'lamp' | 'done' | 'failed'
-// md-brain U+F09D1, md-lightbulb_on_outline U+F06E9, fa-check U+F00C and
-// fa-times U+F00D from the Nerd Fonts; the check and the cross have plain
-// marks instead of emoji, since they sit in the band one per row.
+// fa-brain U+EE9C, fa-lightbulb U+F0EB, fa-check U+F00C and fa-times U+F00D
+// from the Nerd Fonts, all in the Basic Multilingual Plane: a glyph of the
+// Material Design set (U+F0000 on, a supplementary plane) was seen drawn
+// wider than Claude Code measured it, wrapping the band's lines. The check
+// and the cross have plain marks instead of emoji, since they sit in the
+// band one per row.
 export const GLYPHS: Record<IconName, { nerd: string; unicode: string }> = {
-  brain: { nerd: '\u{F09D1}', unicode: '🧠' },
-  lamp: { nerd: '\u{F06E9}', unicode: '💡' },
+  brain: { nerd: '\uEE9C', unicode: '🧠' },
+  lamp: { nerd: '\uF0EB', unicode: '💡' },
   done: { nerd: '\uF00C', unicode: '✓' },
   failed: { nerd: '\uF00D', unicode: '✗' },
 }
