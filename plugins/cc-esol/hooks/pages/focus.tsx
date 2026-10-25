@@ -208,11 +208,11 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
   )
   const paused = isWaiting(t)
   const percent = progressOf(t)
-  // The band's mark before the title: the brain while the task runs, the
-  // done mark once it is over; both from the icon set.
+  // The title is the prompt: a star while the task runs, the done mark once
+  // it is over. The brain marks the steps, not the title.
   const brain = await glyph($, 'brain')
   const doneMark = await glyph($, 'done')
-  const mark = t.doneAt === null ? brain : doneMark
+  const mark = t.doneAt === null ? '✶' : doneMark
 
   // The bar takes the room the title, the caption and the percent leave.
   const columns = Math.max(e.props.bodyColumns ?? 80, 30)
@@ -247,24 +247,28 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
   const runningMark = await glyph($, 'running')
   // The feed: the last calls of the turn, each as Claude described it, the
   // ones done dimmed and the one under way in the band's color with its
-  // clock. Under the running step, or in the steps' place without a list;
-  // nothing once the turn is over.
+  // clock. Under the running step, or in the steps' place without a list,
+  // where each call is a step and takes the brain in the gutter; nothing once
+  // the turn is over.
   const calls = await read($, feed)
-  const feedRows = (indent: number, rows: number): RenderChildren[] =>
+  const feedRows = (indent: number, rows: number, asSteps: boolean): RenderChildren[] =>
     t.doneAt !== null || paused
       ? []
       : feedInView(calls, rows).map(call => {
           const running = call.doneAt == null
           return (
-            <Box key={`feed-${call.id}`} paddingLeft={indent} gap={1} justifyContent="space-between">
-              <Text wrap="truncate" dimColor={!running} color={running ? colors.text : undefined}>
-                {`${running ? runningMark : doneMark} `}
-                <Text bold={running}>{call.tool}</Text>
-                {call.target === '' ? '' : `  ${call.target}`}
-              </Text>
-              {running && (
-                <Text dimColor>{clockText(clock - call.startedAt)}</Text>
-              )}
+            <Box key={`feed-${call.id}`} paddingLeft={indent} gap={1}>
+              {asSteps && <Text dimColor>{brain}</Text>}
+              <Box flexGrow={1} gap={1} justifyContent="space-between">
+                <Text wrap="truncate" dimColor={!running} color={running ? colors.text : undefined}>
+                  {`${running ? runningMark : doneMark} `}
+                  <Text bold={running}>{call.tool}</Text>
+                  {call.target === '' ? '' : `  ${call.target}`}
+                </Text>
+                {running && (
+                  <Text dimColor>{clockText(clock - call.startedAt)}</Text>
+                )}
+              </Box>
             </Box>
           )
         })
@@ -297,7 +301,7 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
             </Box>
           </Box>
         </Box>
-        {i === runningRow && feedRows(5, FEED_ROWS_UNDER_STEP)}
+        {i === runningRow && feedRows(5, FEED_ROWS_UNDER_STEP, false)}
       </Box>
     )
   }
@@ -322,7 +326,7 @@ async function drawBand($: EngineInterface, e: RenderInput<'AbovePrompt'>) {
         // No list: the caption, then the feed in the steps' place, no bar to fill.
         <Text dimColor>{stepCaption(t)}</Text>
       )}
-      {t.steps.length === 0 && feedRows(2, FEED_ROWS)}
+      {t.steps.length === 0 && feedRows(0, FEED_ROWS, true)}
       {shown.map(stepRow)}
       {t.steps.length > shown.length && <Text dimColor>{`${brain} +${t.steps.length - shown.length} more · ${finished} done`}</Text>}
     </Box>

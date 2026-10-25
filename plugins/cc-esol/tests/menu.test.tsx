@@ -375,9 +375,13 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /Working…/ })).toBeDefined()
     expect(await drawn.find({ text: /%/ })).toBeUndefined()
     expect(await drawn.find({ text: /call/ })).toBeUndefined()
+    // The title is the prompt: the brain is kept for the steps, here the calls.
+    expect(await drawn.find({ text: /🧠/ })).toBeUndefined()
 
     await $.tool.call({ tool: 'Bash', command: 'cat -n frame.tsx', description: 'Read the frame' } as never)
     expect(seen).toMatch(/▸ Bash  Read the frame/)
+    expect(await drawn.find({ text: /🧠/ })).toBeDefined()
+    expect(await drawn.find({ text: /✶ Reorganize the settings tab/ })).toBeDefined()
     // Returned: the call stays, marked done, and is counted.
     expect(await drawn.find({ text: /✓ Bash  Read the frame/ })).toBeDefined()
     expect(await drawn.find({ text: /1 call$/ })).toBeDefined()
