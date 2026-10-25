@@ -35,10 +35,9 @@ Voice dictation is Claude Code's feature, not this plugin's. It needs a claude.a
 
 **What it costs**
 
-- Themes, Model, Status line, Voice and Icons cost no tokens: they read what Claude Code already emits and never add to a request. Focus costs nothing while Off: its `focus_progress` tool waits behind ToolSearch. While On it costs three things: the tool's definition in the tool list (about 1,200 characters, cached with the rest of the list), one line of 132 characters beside each prompt you type, and Claude's calls to the tool: the plan once, then only the number of each step as it starts, sent in the same message as that step's first tool call, so no request of its own. Switching Focus on or off rewrites the prompt cache once, on the next turn.
+- Themes, Model, Status line, Voice and Icons cost no tokens: they read what Claude Code already emits and never add to a request. Focus costs nothing while Off: its `focus_progress` tool waits behind ToolSearch. While On it costs three things: the tool's definition in the tool list (about 1,400 characters, cached with the rest of the list), one line of 132 characters beside each prompt you type, and Claude's calls to the tool: the plan once, then only the number of each step as it starts, sent in the same message as that step's first tool call, so no request of its own. Switching Focus on or off rewrites the prompt cache once, on the next turn.
 - The plugin never changes Claude Code's system prompt: what it says to Claude rides in its own tool's description and beside your prompts.
 - ESOL is not free. While coaching is On, the coaching rules travel in the description of the plugin's own `english_log` tool (under 4,096 characters with the rest of it), in the cached tool list of every request rather than in the history. Each coached prompt carries one extra line of about 160 characters, the gate's measurement. Each correction is one tool call whose arguments are your original, the rewrite and the reasons, and that call stays in the conversation like any other. With coaching Off nothing is added and the tool waits behind ToolSearch.
-- Measured on a fixed script of ten prompts, coaching Off and On, same model and version: see [Measured cost](#measured-cost) below.
 
 ## The rest of the sidebar
 
@@ -56,7 +55,7 @@ The model (Fable, Opus, Sonnet, Haiku, or Claude Code's default), the effort fro
 
 A band above the prompt with the task's title, a clock, a progress bar and the steps. While Focus is On, Claude posts its plan to the band's own `focus_progress` tool before a task of more than two tool calls, then the number of each step as it starts, so each line moves from pending to running to done; a todo list, the task tools or a plan approved in plan mode feed the band too where the session has them. Under the running step, a feed of the last tool calls as Claude itself described them ("Read the settings page and its tests"): click a row, or reach it with ctrl+x tab, to open what the call ran and the first lines it printed, and again to close it; the calls stay until your next prompt. Tool calls and tool results are hidden from the transcript while Focus is On, except a call that failed or was interrupted; ctrl+o shows every call in full. The turn's end with steps still pending pauses the band, and a turn that was interrupted or failed says so; your next prompt resumes it. `[–]` shrinks it to one line. Colors: blue, dark, light, green, pink, rainbow or a custom one.
 
-<img src="docs/screenshots/focus-band.png" alt="The Focus band above the prompt: the task's title and clock, the progress bar, the steps with their clocks, and under the running step its calls, one opened on the command it ran and the first lines it printed" width="720">
+<img src="docs/screenshots/focus-band.png" alt="The Focus band above the prompt: the task's title, clock and call count, the progress bar, the steps with their clocks, the running step tinted, and its calls under it" width="860">
 
 In the fullscreen layout, three open Claude Code issues ([#102893](https://github.com/anthropics/claude-code/issues/102893), [#104197](https://github.com/anthropics/claude-code/issues/104197), [#104462](https://github.com/anthropics/claude-code/issues/104462)) can make the wheel jump or the last row blink on hidden rows.
 
@@ -79,7 +78,7 @@ The Status line page installs, checks and removes [ccstatusline](https://github.
 
 The Focus switch and its color, the theme as a chip with its name, the status line, and the icon set (Nerd Font, Unicode, or Auto: Nerd Font when your ccstatusline config draws powerline, so no font is ever installed or required).
 
-<img src="docs/screenshots/settings.png" alt="The Settings tab: Focus On/Off, the icon set, and the rows for the Focus color, the theme and the status line" width="420">
+<img src="docs/screenshots/settings.png" alt="The Settings tab: Focus On/Off and the Focus color chip, the theme as a chip with its name, the status line chip, and the icon set last" width="420">
 
 ## Requirements and install
 
@@ -115,10 +114,6 @@ On Windows, use forward slashes in paths when running in Git Bash.
 ## Languages
 
 Twenty languages to pick from in the ESOL settings, or **Other** with the name typed in. The language only tells the coach whose interference habits to look for; the gate that decides whether a prompt is English knows nothing about your language, so it works for any. The sidebar itself speaks English.
-
-## Measured cost
-
-Pending: the ten-prompt script in [docs/releasing.md](docs/releasing.md) is run with coaching Off and On before each release that touches the coaching texts, and the `/usage` readings are published here with the model and the Claude Code version.
 
 ## Troubleshooting
 

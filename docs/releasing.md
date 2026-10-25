@@ -54,8 +54,8 @@ transcript.
 
 ## Measuring the coaching cost
 
-Run before a release that changes the rules, the marker or the tool description, so the README's
-numbers stay measured, never estimated.
+Run before a release that changes the rules, the marker or the tool description, so any numbers
+the README publishes are measured, never estimated.
 
 1. Start a session, coaching **Off**, send the ten prompts of the script above in order, run `/usage`
    and record input, output, cache-write and cache-read tokens.

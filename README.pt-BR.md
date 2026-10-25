@@ -35,10 +35,9 @@ O ditado por voz é um recurso do Claude Code, não deste plugin. Ele exige logi
 
 **Quanto custa**
 
-- Themes, Model, Status line, Voice e Icons não gastam tokens: eles leem o que o Claude Code já emite e nunca acrescentam nada a uma requisição. O Focus não custa nada desligado: a ferramenta `focus_progress` dele fica atrás do ToolSearch. Ligado, custa três coisas: a definição da ferramenta na lista de ferramentas (cerca de 1.200 caracteres, cacheada com o resto da lista), uma linha de 132 caracteres ao lado de cada prompt que você digita e as chamadas do Claude à ferramenta: o plano uma vez, depois só o número de cada passo quando ele começa, enviado na mesma mensagem da primeira chamada de ferramenta daquele passo, sem requisição própria. Ligar ou desligar o Focus reescreve o cache do prompt uma vez, no turno seguinte.
+- Themes, Model, Status line, Voice e Icons não gastam tokens: eles leem o que o Claude Code já emite e nunca acrescentam nada a uma requisição. O Focus não custa nada desligado: a ferramenta `focus_progress` dele fica atrás do ToolSearch. Ligado, custa três coisas: a definição da ferramenta na lista de ferramentas (cerca de 1.400 caracteres, cacheada com o resto da lista), uma linha de 132 caracteres ao lado de cada prompt que você digita e as chamadas do Claude à ferramenta: o plano uma vez, depois só o número de cada passo quando ele começa, enviado na mesma mensagem da primeira chamada de ferramenta daquele passo, sem requisição própria. Ligar ou desligar o Focus reescreve o cache do prompt uma vez, no turno seguinte.
 - O plugin nunca altera o system prompt do Claude Code: o que ele diz ao Claude viaja na descrição da própria ferramenta e ao lado dos seus prompts.
 - O ESOL não é de graça. Com o coaching ligado, as regras de coaching viajam na descrição da ferramenta `english_log` do próprio plugin (menos de 4.096 caracteres com o resto dela), na lista de ferramentas cacheada de cada requisição, e não no histórico. Cada prompt corrigido carrega uma linha extra de cerca de 160 caracteres, a medição do filtro. Cada correção é uma chamada de ferramenta cujos argumentos são o seu original, a reescrita e os motivos, e essa chamada fica na conversa como qualquer outra. Com o coaching desligado nada é acrescentado e a ferramenta espera atrás do ToolSearch.
-- Medido com um roteiro fixo de dez prompts, coaching desligado e ligado, mesmo modelo e versão: veja [Custo medido](#custo-medido) abaixo.
 
 ## O resto da barra lateral
 
@@ -56,7 +55,7 @@ O modelo (Fable, Opus, Sonnet, Haiku ou o padrão do Claude Code), o esforço de
 
 Uma faixa acima do prompt com o título da tarefa, um relógio, uma barra de progresso e os passos. Com o Focus ligado, o Claude envia o plano para a ferramenta própria da faixa, `focus_progress`, antes de uma tarefa com mais de duas chamadas de ferramenta, e depois o número de cada passo quando ele começa, então cada linha anda de pendente para em andamento e concluída; a lista de todos, as tasks ou um plano aprovado no plan mode também alimentam a faixa quando a sessão os tem. Sob o passo em andamento fica um feed das últimas chamadas de ferramenta tal como o próprio Claude as descreveu ("Read the settings page and its tests"): clique numa linha, ou chegue nela com ctrl+x tab, para abrir o que a chamada executou e as primeiras linhas que ela imprimiu, e de novo para fechar; as chamadas ficam até o seu próximo prompt. Chamadas e resultados de ferramentas somem da transcrição com o Focus ligado, exceto uma chamada que falhou ou foi interrompida; o ctrl+o mostra todas as chamadas por inteiro. O fim do turno com passos pendentes pausa a faixa, e um turno interrompido ou com erro diz isso; o seu próximo prompt retoma. `[–]` encolhe a faixa para uma linha. Cores: blue, dark, light, green, pink, rainbow ou uma personalizada.
 
-<img src="docs/screenshots/focus-band.png" alt="A faixa Focus acima do prompt: o título e o relógio da tarefa, a barra de progresso, os passos com seus relógios e, sob o passo em andamento, as chamadas dele, uma aberta no comando que executou e nas primeiras linhas que imprimiu" width="720">
+<img src="docs/screenshots/focus-band.png" alt="A faixa Focus acima do prompt: o título, o relógio e a contagem de chamadas da tarefa, a barra de progresso, os passos com seus relógios, o passo em andamento destacado e as chamadas dele logo abaixo" width="860">
 
 No layout de tela cheia, três issues abertas do Claude Code ([#102893](https://github.com/anthropics/claude-code/issues/102893), [#104197](https://github.com/anthropics/claude-code/issues/104197), [#104462](https://github.com/anthropics/claude-code/issues/104462)) podem fazer a roda do mouse pular ou a última linha piscar nas linhas ocultas.
 
@@ -79,7 +78,7 @@ A página Status line instala, confere e remove o [ccstatusline](https://github.
 
 A chave do Focus e a cor dele, o tema como um chip com o nome dele, a status line e o conjunto de ícones (Nerd Font, Unicode ou Auto: Nerd Font quando a sua configuração do ccstatusline desenha powerline, então nenhuma fonte é instalada nem exigida).
 
-<img src="docs/screenshots/settings.png" alt="A aba Settings: Focus On/Off, o conjunto de ícones e as linhas da cor do Focus, do tema e da status line" width="420">
+<img src="docs/screenshots/settings.png" alt="A aba Settings: Focus On/Off e o chip da cor do Focus, o tema como um chip com o nome dele, o chip da status line e, por último, o conjunto de ícones" width="420">
 
 ## Requisitos e instalação
 
@@ -115,10 +114,6 @@ No Windows, use barras normais nos caminhos ao rodar no Git Bash.
 ## Línguas
 
 Vinte línguas para escolher nas configurações do ESOL, ou **Other** com o nome digitado. A língua só diz ao coach que hábitos de interferência procurar; o filtro que decide se um prompt é inglês não sabe nada sobre a sua língua, então funciona para qualquer uma. A barra lateral em si fala inglês.
-
-## Custo medido
-
-Pendente: o roteiro de dez prompts em [docs/releasing.md](docs/releasing.md) é rodado com coaching desligado e ligado antes de cada release que mexa nos textos de coaching, e as leituras do `/usage` são publicadas aqui com o modelo e a versão do Claude Code.
 
 ## Problemas comuns
 

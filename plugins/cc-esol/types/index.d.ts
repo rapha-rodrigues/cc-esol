@@ -62,7 +62,7 @@ export type ThemeEntry = { slug: string; name: string; colors: string[] }
 
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
-export type Lang = 'en' | 'pt'
+export type Lang = 'en'
 
 // One entry of the English learning log, as the ESOL tab lists it.
 export type EnglishLogEntry = { ts: string; project: string; original: string; native: string; why: string[] }

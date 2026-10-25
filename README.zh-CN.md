@@ -37,10 +37,9 @@ ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向�
 
 **它的成本**
 
-- Themes、Model、Status line、Voice 和 Icons 不消耗 token：它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。Focus 关闭时没有任何开销：它的 `focus_progress` 工具在 ToolSearch 后面等待。开启时有三项开销：工具列表中的工具定义（约 1,200 个字符，与列表其余部分一起缓存）、你输入的每个 prompt 旁边一行 132 个字符的文字，以及 Claude 对该工具的调用：计划只发一次，之后每个步骤开始时只发送它的编号，并与该步骤的第一次工具调用放在同一条消息里，不单独发起请求。开启或关闭 Focus 会在下一回合重写一次 prompt 缓存。
+- Themes、Model、Status line、Voice 和 Icons 不消耗 token：它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。Focus 关闭时没有任何开销：它的 `focus_progress` 工具在 ToolSearch 后面等待。开启时有三项开销：工具列表中的工具定义（约 1,400 个字符，与列表其余部分一起缓存）、你输入的每个 prompt 旁边一行 132 个字符的文字，以及 Claude 对该工具的调用：计划只发一次，之后每个步骤开始时只发送它的编号，并与该步骤的第一次工具调用放在同一条消息里，不单独发起请求。开启或关闭 Focus 会在下一回合重写一次 prompt 缓存。
 - 插件从不修改 Claude Code 的 system prompt：它对 Claude 说的话随自己工具的描述以及你的 prompt 一起传送。
 - ESOL 不是免费的。coaching 开启时，教练规则随插件自己的 `english_log` 工具的描述一起传送（连同描述其余部分不到 4,096 个字符），位于每次请求被缓存的工具列表中，而不在历史里。每个被纠正的 prompt 多带一行约 160 个字符，即门槛的测量结果。每次纠正是一次工具调用，参数是你的原文、改写和原因，这次调用会像其他调用一样留在对话里。coaching 关闭时什么都不会添加，工具退到 ToolSearch 之后等待。
-- 用固定的十条 prompt 脚本在 coaching 关闭和开启、相同模型和版本下测量：见下文的 [实测成本](#实测成本)。
 
 ## 侧边栏的其余部分
 
@@ -58,7 +57,7 @@ ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向�
 
 prompt 上方的一条横幅，显示任务标题、计时、进度条和步骤。Focus 开启时，在需要两次以上工具调用的任务开始前，Claude 会把计划发给横幅自己的工具 `focus_progress`，之后每个步骤开始时发送它的编号，所以每一行都会从待办变为进行中再变为完成；会话提供 todo 列表、task 工具或 plan mode 中批准的计划时，它们也会更新横幅。运行中的步骤下方显示最近几次工具调用的动态，按 Claude 自己的描述显示（"Read the settings page and its tests"）：点击某一行（或用 ctrl+x tab 移到它上面）可展开该调用执行的内容和输出的前几行，再点一次收起；这些调用会保留到你的下一个 prompt。Focus 开启时工具调用和结果从对话记录中隐藏，失败或被中断的调用除外；ctrl+o 可查看所有调用的完整内容。回合结束时若仍有待办步骤，横幅会暂停，被中断或出错的回合会显示出来；你的下一个 prompt 让它继续。`[–]` 把它收成一行。颜色：blue、dark、light、green、pink、rainbow，或自定义。
 
-<img src="docs/screenshots/focus-band.png" alt="prompt 上方的 Focus 横幅：任务标题和计时、进度条、带各自计时的步骤，以及运行中步骤下方的工具调用，其中一条已展开，显示它执行的命令和输出的前几行" width="720">
+<img src="docs/screenshots/focus-band.png" alt="prompt 上方的 Focus 横幅：任务标题、计时和调用次数、进度条、带各自计时的步骤、高亮的运行中步骤，以及其下方的工具调用" width="860">
 
 在全屏布局下，Claude Code 的三个未关闭 issue（[#102893](https://github.com/anthropics/claude-code/issues/102893)、[#104197](https://github.com/anthropics/claude-code/issues/104197)、[#104462](https://github.com/anthropics/claude-code/issues/104462)）可能让滚轮跳动，或让隐藏行上的最后一行闪烁。
 
@@ -81,7 +80,7 @@ Status line 页面负责安装、检查和移除 [ccstatusline](https://github.c
 
 Focus 开关及其颜色、以名称显示为按钮的主题、状态栏，以及图标集（Nerd Font、Unicode，或 Auto：当你的 ccstatusline 配置绘制 powerline 时使用 Nerd Font，因此从不安装也不要求任何字体）。
 
-<img src="docs/screenshots/settings.png" alt="Settings 标签页：Focus On/Off、图标集，以及 Focus 颜色、主题和状态栏的行" width="420">
+<img src="docs/screenshots/settings.png" alt="Settings 标签页：Focus On/Off 与 Focus 颜色按钮、以名称显示为按钮的主题、状态栏按钮，最后是图标集" width="420">
 
 ## 要求与安装
 
@@ -117,10 +116,6 @@ claude plugin marketplace update esol && claude plugin update cc-esol@esol
 ## 语言
 
 ESOL 设置里有二十种语言可选，或选 **Other** 并输入名称。语言只告诉教练该留意哪种母语干扰；判断一个 prompt 是否为英语的门槛对你的语言一无所知，因此适用于任何语言。侧边栏本身使用英语。
-
-## 实测成本
-
-待补充：每次发布涉及教练文本的改动前，会用 [docs/releasing.md](docs/releasing.md) 中的十条 prompt 脚本在 coaching 关闭和开启下各跑一遍，并把 `/usage` 的读数连同模型和 Claude Code 版本发布在这里。
 
 ## 常见问题
 

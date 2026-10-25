@@ -8,7 +8,7 @@ If the file does not exist or is empty, say so and stop.
 
 Otherwise produce two parts, in this order.
 
-## Part 1 — Analysis
+## Part 1: Analysis
 
 Keep this part under 40 lines. No praise, no filler.
 
@@ -17,7 +17,7 @@ Keep this part under 40 lines. No praise, no filler.
 3. **Progress signal**: compare the last ~2 weeks of entries against older ones. Are the same mistakes repeating or fading? If the log is too short or too sparse to support a trend, say that instead of inventing one.
 4. **Three targeted drills**: one-line exercises the user can practice by dictating prompts during normal work (e.g., "This week, phrase every request as an imperative without 'please can you'").
 
-## Part 2 — Every entry, reformatted
+## Part 2: Every entry, reformatted
 
 Then reproduce the log entries, newest first, with `NATIVE` and `WHY` nested under `ORIGINAL`:
 

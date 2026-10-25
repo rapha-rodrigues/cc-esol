@@ -152,9 +152,6 @@ export type CoachingContract = {
 
 // How a marker opens.
 export const MARKER_PREFIX = 'ESOL gate:'
-// What the model is sent of a tool's description, at most.
-export const MAX_TOOL_DESCRIPTION = 4096
-
 export const coachingContract = (native: string, logPath: string): CoachingContract => {
   const rules = [
     'ESOL coaching rules',
