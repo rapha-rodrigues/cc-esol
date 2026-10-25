@@ -284,7 +284,7 @@ describe('the Focus band', () => {
     let seen: string | undefined
     let band: { find: (q: { text: RegExp }) => Promise<{ text: string } | undefined> } | null = null
     on('tool.call', { tool: 'Bash' }, async () => {
-      seen = (await band?.find({ text: /▸ Bash/ }))?.text
+      seen = (await band?.find({ text: /🧠 Bash/ }))?.text
       return { result: 'ok' }
     })
     const { hint, pane } = await mountAll($)
@@ -303,7 +303,10 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /50%/ })).toBeDefined()
     expect(await drawn.find({ text: /Step 2 of 4/ })).toBeDefined()
     expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
+    // One mark a step: the brain until it is done, the check then.
     expect(await drawn.find({ text: /🧠\s+2/ })).toBeDefined()
+    expect(await drawn.find({ text: /🧠\s+3/ })).toBeDefined()
+    expect(await drawn.find({ text: /^✓\s+1$/ })).toBeDefined()
     expect(await drawn.find({ text: /Working/ })).toBeDefined()
     expect(await drawn.find({ text: /^0s$/ })).toBeDefined()
     expect(await drawn.find({ text: /Next/ })).toBeUndefined()
@@ -314,10 +317,10 @@ describe('the Focus band', () => {
     await pane.press({ key: 'settings-icons-unicode' })
 
     await $.tool.call({ tool: 'Bash', command: 'npm test', description: 'Run the tests' } as never)
-    expect(seen).toMatch(/▸ Bash  Run the tests/)
+    expect(seen).toMatch(/🧠 Bash  Run the tests/)
     // Returned: it stays under the running step, done.
-    expect(await drawn.find({ text: /▸ Bash/ })).toBeUndefined()
-    expect(await drawn.find({ text: /✓ Bash  Run the tests/ })).toBeDefined()
+    expect(await drawn.find({ text: /🧠 Bash/ })).toBeUndefined()
+    expect(await drawn.find({ text: /✓\s+Bash  Run the tests/ })).toBeDefined()
 
     // A subagent's own list, calls and end are not the band's.
     await $.tool.call({ tool: 'TodoWrite', agentId: 'a1', todos: [{ content: 'Agent step', status: 'in_progress', activeForm: 'Agent stepping' }] } as never)
@@ -325,7 +328,7 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /Fetching data/ })).toBeDefined()
     await $.turn.complete({ reason: 'answer', text: 'agent done', agentId: 'a1' } as never)
     expect(await drawn.find({ text: /Paused/ })).toBeUndefined()
-    expect(await drawn.find({ text: /✓ Bash  Run the tests/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓\s+Bash  Run the tests/ })).toBeDefined()
 
     await clock.advance(5_000)
     await $.turn.complete({ reason: 'answer', text: 'so far' } as never)
@@ -358,11 +361,12 @@ describe('the Focus band', () => {
     let seen: string | undefined
     let band: { find: (q: { text: RegExp }) => Promise<{ text: string } | undefined> } | null = null
     on('tool.call', { tool: 'Bash' }, async () => {
-      seen = (await band?.find({ text: /▸ Bash/ }))?.text
+      seen = (await band?.find({ text: /^🧠 Bash/ }))?.text
       return { result: 'ok' }
     })
     on('tool.call', { tool: 'Edit' }, () => ({ result: 'ok' }))
     on('tool.list', () => ({ value: [] }))
+    on('ui.invalidate', () => ({ value: undefined }))
     const { hint, pane } = await mountAll($)
     const drawn = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...bandAt() })
     band = drawn
@@ -377,23 +381,24 @@ describe('the Focus band', () => {
     expect(await drawn.find({ text: /call/ })).toBeUndefined()
     // The title is the prompt: the brain is kept for the steps, here the calls.
     expect(await drawn.find({ text: /🧠/ })).toBeUndefined()
-
-    await $.tool.call({ tool: 'Bash', command: 'cat -n frame.tsx', description: 'Read the frame' } as never)
-    expect(seen).toMatch(/▸ Bash  Read the frame/)
-    expect(await drawn.find({ text: /🧠/ })).toBeDefined()
     expect(await drawn.find({ text: /✶ Reorganize the settings tab/ })).toBeDefined()
+
+    // One mark a call: the brain while it runs, the check once it returns.
+    await $.tool.call({ tool: 'Bash', command: 'cat -n frame.tsx', description: 'Read the frame' } as never)
+    expect(seen).toMatch(/^🧠 Bash  Read the frame/)
+    expect(await drawn.find({ text: /🧠/ })).toBeUndefined()
     // Returned: the call stays, marked done, and is counted.
-    expect(await drawn.find({ text: /✓ Bash  Read the frame/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓\s+Bash  Read the frame/ })).toBeDefined()
     expect(await drawn.find({ text: /1 call$/ })).toBeDefined()
     await $.tool.call({ tool: 'Edit', file_path: '/home/me/p/hooks/pages/settings.tsx', old_string: 'a', new_string: 'b' } as never)
-    expect(await drawn.find({ text: /✓ Edit  settings.tsx/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓\s+Edit  settings.tsx/ })).toBeDefined()
     // The feed keeps the earlier call too, oldest first, four at most.
-    expect(await drawn.find({ text: /✓ Bash  Read the frame/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓\s+Bash  Read the frame/ })).toBeDefined()
     expect(await drawn.find({ text: /2 calls/ })).toBeDefined()
     for (const name of ['one.ts', 'two.ts', 'three.ts']) await $.tool.call({ tool: 'Edit', file_path: `/home/me/p/${name}`, old_string: 'a', new_string: 'b' } as never)
     expect(await drawn.find({ text: /Read the frame/ })).toBeUndefined()
-    expect(await drawn.find({ text: /✓ Edit  settings.tsx/ })).toBeDefined()
-    expect(await drawn.find({ text: /✓ Edit  three.ts/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓\s+Edit  settings.tsx/ })).toBeDefined()
+    expect(await drawn.find({ text: /✓\s+Edit  three.ts/ })).toBeDefined()
     expect(await drawn.find({ text: /5 calls/ })).toBeDefined()
     // The Nerd Font set draws its own marks.
     await pane.press({ key: 'settings-icons-nerd' })
@@ -404,7 +409,7 @@ describe('the Focus band', () => {
     await clock.advance(3_000)
     await $.turn.complete({ reason: 'answer', text: 'done' } as never)
     expect(await drawn.find({ text: /Done/ })).toBeDefined()
-    expect(await drawn.find({ text: /✓ Edit/ })).toBeUndefined()
+    expect(await drawn.find({ text: /✓\s+Edit/ })).toBeUndefined()
   })
 
   test("while Focus is on, the todo tools' descriptions carry the band's ask; off, they are the engine's own", async ($, on) => {

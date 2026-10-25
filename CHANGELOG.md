@@ -23,8 +23,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   dimmed, the one under way with its clock, their count in the header); while on, a prompt long
   enough to be several steps carries one short line asking Claude to open a todo list (only in a
   session that has a todo tool, which it names), the todo tools' descriptions carry the same note,
-  the brain marks each step (each call when there is no list), and tool calls and tool results are
-  hidden. Six band colors plus a custom one.
+  each step and each call carries one mark (the brain until it is done, a check then), and tool
+  calls and tool results are hidden. Six band colors plus a custom one.
 - **Themes.** Terminal color themes from terminalcolors.com, downloaded at runtime and applied to the
   terminal (OSC, or a Windows Terminal profile) and to Claude Code's own colors.
 - **Status line page and Layout Editor.** Install, check and remove ccstatusline; edit its layout
