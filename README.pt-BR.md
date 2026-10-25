@@ -33,11 +33,13 @@ O ditado por voz é um recurso do Claude Code, não deste plugin. Ele exige logi
 - **Review** envia o registro (no máximo os 150.000 caracteres mais recentes) ao modelo numa única requisição e guarda a resposta no store do plugin, um arquivo JSON em `~/.claude/plugins/store/cc-esol_*.json`. O comando `/cc-esol:english-review` faz o mesmo na transcrição, listando todas as entradas.
 - Para apagar tudo: remova o arquivo do registro e remova o arquivo do store para descartar a review guardada e as configurações (o coaching volta a Off). Desinstalar o plugin deixa o registro no lugar.
 
-**Quanto custa**
+**Quanto custa** (estimativas, a cerca de quatro caracteres por token)
 
-- Themes, Model, Status line, Voice e Icons não gastam tokens: eles leem o que o Claude Code já emite e nunca acrescentam nada a uma requisição. O Focus não custa nada desligado: a ferramenta `focus_progress` dele fica atrás do ToolSearch. Ligado, custa três coisas: a definição da ferramenta na lista de ferramentas (cerca de 1.400 caracteres, cacheada com o resto da lista), uma linha de 132 caracteres ao lado de cada prompt que você digita e as chamadas do Claude à ferramenta: o plano uma vez, depois só o número de cada passo quando ele começa, enviado na mesma mensagem da primeira chamada de ferramenta daquele passo, sem requisição própria. Ligar ou desligar o Focus reescreve o cache do prompt uma vez, no turno seguinte.
-- O plugin nunca altera o system prompt do Claude Code: o que ele diz ao Claude viaja na descrição da própria ferramenta e ao lado dos seus prompts.
-- O ESOL não é de graça. Com o coaching ligado, as regras de coaching viajam na descrição da ferramenta `english_log` do próprio plugin (menos de 4.096 caracteres com o resto dela), na lista de ferramentas cacheada de cada requisição, e não no histórico. Cada prompt corrigido carrega uma linha extra de cerca de 160 caracteres, a medição do filtro. Cada correção é uma chamada de ferramenta cujos argumentos são o seu original, a reescrita e os motivos, e essa chamada fica na conversa como qualquer outra. Com o coaching desligado nada é acrescentado e a ferramenta espera atrás do ToolSearch.
+- Themes, Model, Status line, Voice e Icons: nada. Eles leem o que o Claude Code já emite e nunca acrescentam nada a uma requisição.
+- Coaching do ESOL, ligado: cerca de 700 tokens de regras na descrição da ferramenta `english_log`, enviados com a lista de ferramentas e cacheados; cerca de 40 tokens ao lado de cada prompt em inglês; e cada correção é uma chamada de ferramenta de uns 150 a 300 tokens de saída, que fica na conversa. Desligado: nada, a ferramenta espera atrás do ToolSearch.
+- Focus, ligado: cerca de 350 tokens para a ferramenta `focus_progress`, também cacheados; cerca de 35 tokens ao lado de cada prompt; e as atualizações do Claude, uns 100 tokens de saída para um plano e mais 25 por passo, enviados junto com as outras chamadas de ferramenta. Desligado: nada.
+- Para comparar: cada requisição do Claude Code já leva dezenas de milhares de tokens de system prompt e definições de ferramentas, então a parte fixa é pequena; as correções são o que cresce com o uso. Ligar ou desligar qualquer um dos dois reescreve o cache do prompt uma vez.
+- O plugin nunca altera o system prompt do Claude Code: o que ele diz ao Claude viaja na descrição das próprias ferramentas e ao lado dos seus prompts.
 
 ## O resto da barra lateral
 

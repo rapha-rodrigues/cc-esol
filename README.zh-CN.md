@@ -35,11 +35,13 @@ ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向�
 - **Review** 会把日志（最多最新的 150,000 个字符）在一次请求中发给模型，并把回答保存在插件的 store 里，即 `~/.claude/plugins/store/cc-esol_*.json` 这个 JSON 文件。`/cc-esol:english-review` 命令在对话记录中做同样的事，并列出每一条目。
 - 要全部删除：删掉日志文件；删掉 store 文件可以丢弃保存的 review 和设置（coaching 回到 Off）。卸载插件不会动日志。
 
-**它的成本**
+**它的成本**（估算，约四个字符算一个 token）
 
-- Themes、Model、Status line、Voice 和 Icons 不消耗 token：它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。Focus 关闭时没有任何开销：它的 `focus_progress` 工具在 ToolSearch 后面等待。开启时有三项开销：工具列表中的工具定义（约 1,400 个字符，与列表其余部分一起缓存）、你输入的每个 prompt 旁边一行 132 个字符的文字，以及 Claude 对该工具的调用：计划只发一次，之后每个步骤开始时只发送它的编号，并与该步骤的第一次工具调用放在同一条消息里，不单独发起请求。开启或关闭 Focus 会在下一回合重写一次 prompt 缓存。
+- Themes、Model、Status line、Voice 和 Icons：没有开销。它们只读取 Claude Code 本来就会产生的信息，从不往请求里添加内容。
+- ESOL coaching 开启时：`english_log` 工具描述中的规则约 700 个 token，随工具列表发送并被缓存；每个英文 prompt 旁边约 40 个 token；每次纠正是一次工具调用，约 150 到 300 个输出 token，并留在对话里。关闭时：没有开销，工具在 ToolSearch 后面等待。
+- Focus 开启时：`focus_progress` 工具约 350 个 token，同样被缓存；每个 prompt 旁边约 35 个 token；以及 Claude 的进度更新，一个计划约 100 个输出 token，每个步骤再加约 25 个，与它的其他工具调用一起发送。关闭时：没有开销。
+- 作为参照：Claude Code 的每次请求本来就带有数万个 token 的 system prompt 和工具定义，所以固定部分很小；随使用增长的是纠正本身。开启或关闭其中任一功能会重写一次 prompt 缓存。
 - 插件从不修改 Claude Code 的 system prompt：它对 Claude 说的话随自己工具的描述以及你的 prompt 一起传送。
-- ESOL 不是免费的。coaching 开启时，教练规则随插件自己的 `english_log` 工具的描述一起传送（连同描述其余部分不到 4,096 个字符），位于每次请求被缓存的工具列表中，而不在历史里。每个被纠正的 prompt 多带一行约 160 个字符，即门槛的测量结果。每次纠正是一次工具调用，参数是你的原文、改写和原因，这次调用会像其他调用一样留在对话里。coaching 关闭时什么都不会添加，工具退到 ToolSearch 之后等待。
 
 ## 侧边栏的其余部分
 

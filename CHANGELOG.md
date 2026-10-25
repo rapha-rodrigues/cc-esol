@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-24
+
 ### Added
 
 - **ESOL tab.** Passive American English coaching for speakers of other languages: every prompt you
@@ -41,3 +43,6 @@ versions follow [Semantic Versioning](https://semver.org/).
 - **Settings.** The Focus switch with its color as a painted chip, the Theme block with the chosen
   theme as its chip, a ccstatusline chip, and the icon set (Nerd Font, Unicode, auto) last.
 - **`/esol` command** and the corner button that open the pane on a tab.
+
+[Unreleased]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/rapha-rodrigues/cc-esol/releases/tag/v1.0.0

@@ -33,11 +33,13 @@ Voice dictation is Claude Code's feature, not this plugin's. It needs a claude.a
 - **Review** sends the log (its newest 150,000 characters at most) to the model in one request and keeps the answer in the plugin's store, a JSON file at `~/.claude/plugins/store/cc-esol_*.json`. The `/cc-esol:english-review` command does the same in the transcript, listing every entry.
 - To delete everything: remove the log file, and remove the store file to drop the kept review and the settings (coaching comes back Off). Uninstalling the plugin leaves the log in place.
 
-**What it costs**
+**What it costs** (estimates, at about four characters per token)
 
-- Themes, Model, Status line, Voice and Icons cost no tokens: they read what Claude Code already emits and never add to a request. Focus costs nothing while Off: its `focus_progress` tool waits behind ToolSearch. While On it costs three things: the tool's definition in the tool list (about 1,400 characters, cached with the rest of the list), one line of 132 characters beside each prompt you type, and Claude's calls to the tool: the plan once, then only the number of each step as it starts, sent in the same message as that step's first tool call, so no request of its own. Switching Focus on or off rewrites the prompt cache once, on the next turn.
-- The plugin never changes Claude Code's system prompt: what it says to Claude rides in its own tool's description and beside your prompts.
-- ESOL is not free. While coaching is On, the coaching rules travel in the description of the plugin's own `english_log` tool (under 4,096 characters with the rest of it), in the cached tool list of every request rather than in the history. Each coached prompt carries one extra line of about 160 characters, the gate's measurement. Each correction is one tool call whose arguments are your original, the rewrite and the reasons, and that call stays in the conversation like any other. With coaching Off nothing is added and the tool waits behind ToolSearch.
+- Themes, Model, Status line, Voice and Icons: nothing. They read what Claude Code already emits and never add to a request.
+- ESOL coaching, while On: about 700 tokens of rules in the `english_log` tool's description, sent with the tool list and cached; about 40 tokens beside each English prompt; and each correction is one tool call of roughly 150 to 300 output tokens that stays in the conversation. Off: nothing, the tool waits behind ToolSearch.
+- Focus, while On: about 350 tokens for the `focus_progress` tool, also cached; about 35 tokens beside each prompt; and Claude's updates, roughly 100 output tokens for a plan plus 25 per step, sent alongside its other tool calls. Off: nothing.
+- For scale: every Claude Code request already carries tens of thousands of tokens of system prompt and tool definitions, so the fixed part is small; the corrections are what grows with use. Switching either feature on or off rewrites the prompt cache once.
+- The plugin never changes Claude Code's system prompt: what it tells Claude rides in its own tools' descriptions and beside your prompts.
 
 ## The rest of the sidebar
 
