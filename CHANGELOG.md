@@ -5,6 +5,28 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-26
+
+cc-esol is the English coach alone now, so it installs beside any focus, theme or status line mod
+without overlapping it. Everything else moved to its own plugin,
+[cc-focusdeck](https://github.com/rapha-rodrigues/cc-focusdeck).
+
+### Removed
+
+- The Model page, Focus and its band, Themes, the Status line page and Layout Editor, the Settings
+  tab and the icon sets, with the `/esol` arguments `model`, `settings`, `themes`, `focus`,
+  `statusline`, `editor` and `debug`. They are in cc-focusdeck, which keeps its own settings: those
+  kept by cc-esol 1.x do not carry over.
+- The Model button under the prompt, and the pane's tab strip.
+
+### Changed
+
+- The row under the prompt keeps what Claude Code and the other mods draw there, with the lamp and
+  Voice beside it, where it used to draw the row over them.
+- The pane opens straight on the coach, on the background of Claude Code's theme, and closes when
+  another pane opens (cc-focusdeck's, any mod's), so the sidebar shows one pane, never a row of tabs.
+- The coach's settings and the learning log carry over unchanged.
+
 ## [1.0.2] - 2026-10-25
 
 ### Fixed
@@ -76,7 +98,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   theme as its chip, a ccstatusline chip, and the icon set (Nerd Font, Unicode, auto) last.
 - **`/esol` command** and the corner button that open the pane on a tab.
 
-[Unreleased]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/rapha-rodrigues/cc-esol/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.2...v2.0.0
 [1.0.2]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/rapha-rodrigues/cc-esol/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rapha-rodrigues/cc-esol/releases/tag/v1.0.0

@@ -1,4 +1,4 @@
-// The English tab: passive American English coaching for someone whose first
+// The English page: passive American English coaching for someone whose first
 // language is not English. Every prompt in English runs as usual; the rules
 // travel in the english_log tool's description while coaching is on, a
 // one-line marker rides beside each prompt the gate passed, and Claude logs
@@ -29,6 +29,7 @@ import {
   MIN_WORDS_CHOICES,
   parseLog,
   EN_CUTOFFS,
+  readableModel,
   resolveLogPath,
   reviewPrompt,
   reviewTail,
@@ -38,8 +39,6 @@ import {
 } from './lib/english'
 import type { Phrase } from './lib/i18n'
 import { homeDir, isWindows } from './lib/platform'
-import { readableModel } from './lib/session-controls'
-import { TAB_STRIP_ROWS } from './ui/frame'
 
 // Session values; the settings among them are mirrored to $.store.
 export const englishOn = atom({ plugin: 'cc-esol', key: 'englishOn' } as const, false)
@@ -98,7 +97,7 @@ async function setMinWords($: EngineInterface, minWords: number) {
   await $.store.set('englishMinWords', minWords)
 }
 
-// The log as the tab previews it: where it is, how many entries, the newest.
+// The log as the pane previews it: where it is, how many entries, the newest.
 // Read once here and after each write, never while drawing.
 export async function refreshLog($: EngineInterface) {
   const path = await logPath($)
@@ -170,9 +169,9 @@ export const isOwnWords = (e: { command?: unknown; isMeta?: true; origin: { kind
 const languageLabel = (native: string) => LANGUAGES.find(l => l.name === native)?.label ?? native
 const slug = (label: string) => label.toLowerCase().replace(/[^a-z]+/g, '-').replace(/-$/, '')
 
-// What drawPane in register.tsx lends the tab: its chip and heading idiom,
+// What drawPane in register.tsx lends the page: its chip and heading idiom,
 // the phrase function and the pane's width.
-export type TabHelpers = {
+export type PageHelpers = {
   heading: (text: string, extra?: RenderChildren) => RenderChildren
   chip: (key: string, label: string, isOn: boolean, onPress: () => unknown, color?: string) => RenderChildren
   chips: (key: string, items: RenderChildren[]) => RenderChildren
@@ -180,11 +179,11 @@ export type TabHelpers = {
   columns: number
 }
 
-// Rows the list page spends besides the list: the tab strip (3), the header
-// (1), the chips row (3), the footer (3) and one spare in case a row wraps.
-const LIST_OVERHEAD = TAB_STRIP_ROWS + 1 + 3 + 3 + 1
-// The review page: the tab strip, the chips row, the status line, the footer, one spare.
-const REVIEW_OVERHEAD = TAB_STRIP_ROWS + 3 + 1 + 3 + 1
+// Rows the list page spends besides the list: the header (1), the chips row
+// (3), the footer (3) and one spare in case a row wraps.
+const LIST_OVERHEAD = 1 + 3 + 3 + 1
+// The review page: the chips row, the status line, the footer, one spare.
+const REVIEW_OVERHEAD = 3 + 1 + 3 + 1
 // Columns a row loses to the pane's padding and the marker and date in front.
 const ROW_INDENT = 2
 const MARKER_WIDTH = 2 + 6
@@ -236,7 +235,7 @@ async function toggleOpen($: EngineInterface, i: number) {
 }
 
 // The wheel and the scroll keys move the list's or the review's own window,
-// never the pane, so the tabs stay put (from register.tsx's ui.scroll hook).
+// never the pane, so the footer stays put (from register.tsx's ui.scroll hook).
 export async function scrollEsol($: EngineInterface, by: number, bodyRows: number) {
   const view = await read($, esolView)
   if (view === 'review') {
@@ -268,8 +267,8 @@ export async function focusEsol($: EngineInterface, element: string | undefined,
 
 const modelLabel = readableModel
 
-// The review: the model reads the whole log and writes the analysis the tab
-// shows. Kept in $.store, so the tab opens on the last one until it is run again.
+// The review: the model reads the whole log and writes the analysis the pane
+// shows. Kept in $.store, so the pane opens on the last one until it is run again.
 export async function runReview($: EngineInterface) {
   if (await read($, esolReviewBusy)) return
   await update($, esolReviewBusy, () => true)
@@ -301,10 +300,10 @@ export async function runReview($: EngineInterface) {
   }
 }
 
-export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>, tab: TabHelpers): Promise<RenderChildren[]> {
+export async function drawEnglishPage($: EngineInterface, e: RenderInput<'Pane'>, page: PageHelpers): Promise<RenderChildren[]> {
   if (e.surface !== 'terminal' && e.surface !== 'desktop') return []
   const { Box, Text, Button, Input } = $.ui.resolve(e)
-  paneColumns = tab.columns
+  paneColumns = page.columns
   const bodyRows = e.props.scroll.bodyRows
   const view = await read($, esolView)
   const isOn = await read($, englishOn)
@@ -318,39 +317,39 @@ export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>,
     const minWords = await read($, englishMinWords)
     const count =
       log === null || log.count === 0 || log.last === null
-        ? tab.t('noEntries')
+        ? page.t('noEntries')
         : log.tooLarge
-          ? tab.t('logTooLarge')
+          ? page.t('logTooLarge')
           : log.count === 1
-            ? tab.t('entryOne', { date: log.last.ts })
-            : tab.t('entries', { n: log.count, date: log.last.ts })
+            ? page.t('entryOne', { date: log.last.ts })
+            : page.t('entries', { n: log.count, date: log.last.ts })
     rows.push(
-      tab.chips('esol-nav', [tab.chip('esol-back', tab.t('back'), false, () => goTo($, 'list'))]),
-      tab.heading(tab.t('coaching')),
-      tab.chips('english-onoff', [
-        tab.chip('english-on', tab.t('on'), isOn, () => setEnglishOn($, true)),
-        tab.chip('english-off', tab.t('off'), !isOn, () => setEnglishOn($, false)),
+      page.chips('esol-nav', [page.chip('esol-back', page.t('back'), false, () => goTo($, 'list'))]),
+      page.heading(page.t('coaching')),
+      page.chips('english-onoff', [
+        page.chip('english-on', page.t('on'), isOn, () => setEnglishOn($, true)),
+        page.chip('english-off', page.t('off'), !isOn, () => setEnglishOn($, false)),
       ]),
       <Text key="english-note" dimColor>
-        {tab.t('coachingNote')}
+        {page.t('coachingNote')}
       </Text>,
-      tab.heading(tab.t('enCutoff')),
-      tab.chips(
+      page.heading(page.t('enCutoff')),
+      page.chips(
         'english-cutoff',
-        EN_CUTOFFS.map(n => tab.chip(`english-cutoff-${n}`, `${n}%`, n === cutoff, () => setEnCutoff($, n))),
+        EN_CUTOFFS.map(n => page.chip(`english-cutoff-${n}`, `${n}%`, n === cutoff, () => setEnCutoff($, n))),
       ),
-      tab.heading(tab.t('minWords')),
-      tab.chips(
+      page.heading(page.t('minWords')),
+      page.chips(
         'english-min',
-        MIN_WORDS_CHOICES.map(n => tab.chip(`english-min-${n}`, String(n), n === minWords, () => setMinWords($, n))),
+        MIN_WORDS_CHOICES.map(n => page.chip(`english-min-${n}`, String(n), n === minWords, () => setMinWords($, n))),
       ),
-      tab.heading(tab.t('logFile')),
+      page.heading(page.t('logFile')),
       <Text key="english-log-path" dimColor wrap="truncate">
         {log?.path ?? ''}
       </Text>,
       <Text key="english-log-count">{count}</Text>,
-      tab.heading(tab.t('languageRow')),
-      <Button key="esol-language" plain label={tab.t('languageRow')} onPress={() => goTo($, 'language')}>
+      page.heading(page.t('languageRow')),
+      <Button key="esol-language" plain label={page.t('languageRow')} onPress={() => goTo($, 'language')}>
         <Text bold>{languageLabel(native)}</Text>
         <Text dimColor>{' ›'}</Text>
       </Button>,
@@ -361,16 +360,16 @@ export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>,
   if (view === 'language') {
     const isOther = LANGUAGES.every(l => l.name !== native)
     rows.push(
-      tab.chips('esol-nav', [tab.chip('esol-back', tab.t('back'), false, () => goTo($, 'settings'))]),
-      tab.heading(tab.t('languageTitle')),
-      tab.chips('english-langs', [
-        ...LANGUAGES.map(l => tab.chip(`english-lang-${slug(l.label)}`, l.label, l.name === native, () => setNative($, l.name))),
-        tab.chip('english-lang-other', tab.t('other'), isOther, () => setNative($, isOther ? native : tab.t('other'))),
+      page.chips('esol-nav', [page.chip('esol-back', page.t('back'), false, () => goTo($, 'settings'))]),
+      page.heading(page.t('languageTitle')),
+      page.chips('english-langs', [
+        ...LANGUAGES.map(l => page.chip(`english-lang-${slug(l.label)}`, l.label, l.name === native, () => setNative($, l.name))),
+        page.chip('english-lang-other', page.t('other'), isOther, () => setNative($, isOther ? native : page.t('other'))),
       ]),
     )
     if (isOther) {
       rows.push(
-        <Input key="english-lang-name" label={tab.t('languageName')} value={native} placeholder={DEFAULT_NATIVE} submitLabel="set" onSubmit={value => setNative($, value)} />,
+        <Input key="english-lang-name" label={page.t('languageName')} value={native} placeholder={DEFAULT_NATIVE} submitLabel="set" onSubmit={value => setNative($, value)} />,
       )
     }
     return rows
@@ -382,22 +381,22 @@ export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>,
     const error = await read($, esolReviewError)
     const top = await read($, esolReviewScroll)
     const room = reviewRoom(bodyRows)
-    const lines = review === null ? [] : wrapLines(review.text, Math.max(10, tab.columns - 2))
+    const lines = review === null ? [] : wrapLines(review.text, Math.max(10, page.columns - 2))
     const below = Math.max(0, lines.length - top - room)
     rows.push(
-      tab.chips('esol-nav', [
-        tab.chip('esol-back', tab.t('back'), false, () => goTo($, 'list')),
-        tab.chip('esol-review-run', tab.t('reviewAgain'), busy, () => runReview($)),
+      page.chips('esol-nav', [
+        page.chip('esol-back', page.t('back'), false, () => goTo($, 'list')),
+        page.chip('esol-review-run', page.t('reviewAgain'), busy, () => runReview($)),
       ]),
       <Box key="esol-review-status" justifyContent="space-between" gap={1} flexShrink={0}>
         <Text wrap="truncate" color={error === null ? undefined : 'red'} dimColor={error === null}>
           {busy
-            ? tab.t('reviewRunning')
+            ? page.t('reviewRunning')
             : error !== null
-              ? tab.t('reviewFailed', { reason: error })
+              ? page.t('reviewFailed', { reason: error })
               : review === null
                 ? ''
-                : tab.t('reviewAt', { date: review.at, model: review.model })}
+                : page.t('reviewAt', { date: review.at, model: review.model })}
         </Text>
         <Text dimColor>{top > 0 || below > 0 ? `${top + 1}–${Math.min(lines.length, top + room)}/${lines.length}` : ''}</Text>
       </Box>,
@@ -405,7 +404,7 @@ export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>,
     if (review === null && !busy && error === null) {
       rows.push(
         <Text key="esol-review-none" dimColor>
-          {tab.t('reviewNone')}
+          {page.t('reviewNone')}
         </Text>,
       )
     }
@@ -418,26 +417,26 @@ export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>,
   const open = await read($, esolOpen)
   const top = await read($, esolScroll)
   const room = listRoom(bodyRows)
-  const { from, to } = windowOf(list, top, open, room, tab.columns)
-  const w = textWidth(tab.columns)
+  const { from, to } = windowOf(list, top, open, room, page.columns)
+  const w = textWidth(page.columns)
   const clip = (s: string, width: number) => (s.length > width ? `${s.slice(0, Math.max(1, width - 1))}…` : s)
   rows.push(
     <Box key="esol-head" justifyContent="space-between" gap={1} flexShrink={0}>
-      <Text dimColor>{tab.t('lastCorrections')}</Text>
+      <Text dimColor>{page.t('lastCorrections')}</Text>
       <Text dimColor>{list.length > to - from ? `${from + 1}–${to}/${list.length}` : ''}</Text>
     </Box>,
   )
   if (list.length === 0) {
     rows.push(
       <Text key="esol-none" dimColor>
-        {log?.tooLarge ? tab.t('logTooLarge') : tab.t('noEntriesHint')}
+        {log?.tooLarge ? page.t('logTooLarge') : page.t('noEntriesHint')}
       </Text>,
     )
   }
   if (!isOn) {
     rows.push(
       <Text key="esol-off" color="claude">
-        {tab.t('coachingOffHint')}
+        {page.t('coachingOffHint')}
       </Text>,
     )
   }
@@ -448,7 +447,7 @@ export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>,
       <Button key={`esol:${i}`} plain label={entry.original} onPress={() => toggleOpen($, i)}>
         <Text color={isOpen ? 'claude' : undefined}>{isOpen ? '▾ ' : '▸ '}</Text>
         <Text dimColor>{`${shortDate(entry.ts)} `}</Text>
-        {!isOpen && <Text wrap="truncate">{clip(entry.original, Math.max(10, tab.columns - 2 - MARKER_WIDTH))}</Text>}
+        {!isOpen && <Text wrap="truncate">{clip(entry.original, Math.max(10, page.columns - 2 - MARKER_WIDTH))}</Text>}
       </Button>,
     )
     if (!isOpen) continue
@@ -477,9 +476,9 @@ export async function drawEnglishTab($: EngineInterface, e: RenderInput<'Pane'>,
   }
   rows.push(
     <Box key="esol-spacer" flexGrow={1} />,
-    tab.chips('esol-actions', [
-      tab.chip('esol-settings', tab.t('settings'), false, () => goTo($, 'settings')),
-      tab.chip('esol-review', tab.t('review'), false, () => runReviewOrShow($)),
+    page.chips('esol-actions', [
+      page.chip('esol-settings', page.t('settings'), false, () => goTo($, 'settings')),
+      page.chip('esol-review', page.t('review'), false, () => runReviewOrShow($)),
     ]),
   )
   return rows

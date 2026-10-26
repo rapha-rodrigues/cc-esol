@@ -56,12 +56,12 @@ const engineBeneath = (on: On, state: { enabled: boolean }) => {
 }
 
 describe('voice button', () => {
-  test('shows dictation on or off beside Model and toggles it through /voice', async ($, on) => {
+  test('shows dictation on or off beside the lamp and toggles it through /voice', async ($, on) => {
     const state = { enabled: true }
     const { ran } = engineBeneath(on, state)
     await $.session.start({ cwd: `${HOME}/p`, surface: 'terminal', isInteractive: true })
     const corner = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...hint })
-    expect(await corner.find({ key: 'esol-model' })).toBeDefined()
+    expect(await corner.find({ key: 'esol-toggle' })).toBeDefined()
     expect((await corner.find({ key: 'esol-voice' }))?.text).toMatch(/Voice on/)
     await corner.press({ key: 'esol-voice' })
     expect(ran).toEqual([''])

@@ -1,6 +1,6 @@
 // English coach: the language gate, the coaching contract (the rules in the
 // system prompt, the marker beside a coached prompt, the tool's own words)
-// and the learning log's format. Pure; the hooks and the tab are in
+// and the learning log's format. Pure; the hooks and the page are in
 // ../english.tsx.
 
 import type { EnglishLogEntry } from '../../types'
@@ -19,9 +19,9 @@ export const MIN_WORDS_CHOICES: readonly number[] = [3, 4, 6, 8]
 export const MAX_TEXT = 2000
 export const MAX_WHY = 12
 export const MAX_WHY_TEXT = 300
-// $.fs.read rejects past 4 MiB: the tab stops previewing the log there.
+// $.fs.read rejects past 4 MiB: the pane stops previewing the log there.
 export const MAX_PREVIEW_BYTES = 4 * 1024 * 1024
-// The newest entries the tab lists.
+// The newest entries the pane lists.
 export const MAX_LIST = 200
 // What one review reads at most: the newest tail of a longer log.
 export const MAX_REVIEW_CHARS = 150_000
@@ -352,4 +352,14 @@ export const appendWinArgv = (tmp: string, path: string): string[] => {
   const win = (p: string) => p.split('/').join('\\')
   const dir = win(path).replace(/\\[^\\]*$/, '')
   return ['cmd', '/d', '/s', '/c', `if not exist "${dir}" mkdir "${dir}" & type "${win(tmp)}" >> "${win(path)}" & del /q "${win(tmp)}"`]
+}
+
+// `claude-opus-5-5` as `Opus 5.5`, for the review's byline; an id that is
+// not a Claude model's stays as it is.
+export const readableModel = (id: string): string => {
+  const found = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/i.exec(id)
+  if (found === null) return id
+  const family = found[1]!
+  const version = found[3] === undefined ? found[2]! : `${found[2]}.${found[3]}`
+  return `${family[0]!.toUpperCase()}${family.slice(1)} ${version}`
 }

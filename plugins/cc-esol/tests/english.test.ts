@@ -242,7 +242,7 @@ describe('english log', () => {
 })
 
 // Stands in for the engine beneath the mod: the store, the drawing, the
-// process and file system calls the English tab makes, and the session.
+// process and file system calls the English page makes, and the session.
 const engineBeneath = (on: On, entries: Record<string, unknown> = {}, log?: string) => {
   const runs: string[][] = []
   const invalidated: string[] = []
@@ -348,7 +348,6 @@ describe('english hooks', () => {
     const corner = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...hint })
     const menu = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...pane })
     await corner.press({ key: 'esol-toggle' })
-    await menu.press({ key: 'tab-esol' })
     await menu.press({ key: 'esol-settings' })
 
     await menu.press({ key: 'english-on' })
@@ -480,15 +479,15 @@ describe('english hooks', () => {
     expect(appendWinArgv('/x/y.md.entry-1', '/x/y.md')[4]).toBe('if not exist "\\x" mkdir "\\x" & type "\\x\\y.md.entry-1" >> "\\x\\y.md" & del /q "\\x\\y.md.entry-1"')
   })
 
-  test('the ESOL tab keeps its settings behind a chip, and Off there stops the coaching', async ($, on) => {
+  test('the ESOL pane keeps its settings behind a chip, and Off there stops the coaching', async ($, on) => {
     engineBeneath(on, { englishOn: true })
     await start($)
     for (const surface of ['terminal', 'desktop'] as const) {
       const corner = await $.ui.mount({ plugin: PLUGIN, surface, ...hint })
       const menu = await $.ui.mount({ plugin: PLUGIN, surface, ...pane })
       await corner.press({ key: 'esol-toggle' })
-      await menu.press({ key: 'tab-esol' })
-      expect((await menu.find({ key: 'tab-esol' }))?.text).toMatch(/ESOL/)
+        // The pane is the coach's page alone: no tab strip.
+      expect(await menu.find({ key: 'tab-esol' })).toBeUndefined()
       for (const key of ['esol-settings', 'esol-review']) expect(await menu.find({ key })).toBeDefined()
       expect(await menu.find({ key: 'english-on' })).toBeUndefined()
       expect(await menu.find({ type: 'Text', text: /Entries appear here/ })).toBeDefined()
@@ -553,7 +552,6 @@ describe('english hooks', () => {
     const corner = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...hint })
     const menu = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...pane })
     await corner.press({ key: 'esol-toggle' })
-    await menu.press({ key: 'tab-esol' })
     const rows = (await menu.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('esol:'))
     expect(rows.map(r => r.key)).toEqual(['esol:0', 'esol:1', 'esol:2'])
     expect(rows[0]?.text).toMatch(/10-21/)
@@ -567,7 +565,7 @@ describe('english hooks', () => {
     expect(await menu.find({ type: 'Text', text: /I built an endpoint to fetch the user data/ })).toBeUndefined()
   })
 
-  test('the review runs through the model inside the tab and is kept', async ($, on) => {
+  test('the review runs through the model inside the pane and is kept', async ($, on) => {
     engineBeneath(on, { englishOn: true }, THREE.map(formatEntry).join(''))
     const prompts: string[] = []
     on('session.model', () => ({ value: 'claude-opus-5-5' }))
@@ -579,7 +577,6 @@ describe('english hooks', () => {
     const corner = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...hint })
     const menu = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', ...pane })
     await corner.press({ key: 'esol-toggle' })
-    await menu.press({ key: 'tab-esol' })
     await menu.press({ key: 'esol-review' })
     expect(prompts).toHaveLength(1)
     expect(prompts[0]).toContain(ENGLISH)

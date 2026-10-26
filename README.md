@@ -6,23 +6,29 @@
 
 **Learn English from your daily Claude Code use.**
 
-ESOL stands for *English for Speakers of Other Languages*. cc-esol is a sidebar for [Claude Code](https://claude.com/claude-code) with a passive English coach: you keep prompting as you always do, and the English you type or dictate is corrected into a learning log you read when you want. The same sidebar holds Focus mode, terminal themes, model and effort controls, a status line editor and a voice toggle.
+ESOL stands for *English for Speakers of Other Languages*. cc-esol is a passive English coach for [Claude Code](https://claude.com/claude-code): you keep prompting as you always do, and the English you type or dictate is corrected into a learning log you read when you want. It does the coaching and nothing else, so it sits beside whatever focus, theme or status line mods you already use.
 
 ## How it works
 
-1. Open the sidebar, turn coaching **On** in the ESOL tab and pick your language.
+1. Click **💡 esol** under the prompt, open **Settings**, turn coaching **On** and pick your language.
 2. Every prompt you write in English runs exactly as before. Claude, the model you are already talking to, writes a native version of it with the reasons to one local file: `~/.claude/english-learning/learning.md`.
-3. The tab lists your corrections, newest first. **Review** has the model read the log and answer inside the tab: recurring patterns, interference from your language, whether they are fading, three drills.
+3. The pane lists your corrections, newest first. **Review** has the model read the log and answer inside the pane: recurring patterns, interference from your language, whether they are fading, three drills.
 
-<img src="docs/screenshots/esol-tab.png" alt="The ESOL tab: the latest corrections, one open with the original, the native version and the reasons" width="420">
+<img src="docs/screenshots/esol-tab.png" alt="The ESOL pane: the latest corrections, one open with the original, the native version and the reasons" width="420">
 
 Prompts in your own language are left alone, and so are slash commands, short replies ("yes", "continue") and prompts written in another script. Already-natural English is not logged. Missing apostrophes in contractions ("dont", "im", "thats") are ignored as typing speed; the word choices (its/it's, your/you're, their/they're) are coached. A single word from your language inside an English prompt is treated as a vocabulary gap: the entry gives you the English term.
 
 ## Speak it
 
-The fastest way to practice is to dictate. Claude Code has voice dictation of its own (`/voice`), and the **Voice** button beside the corner button turns it on and off and shows its state. The coach corrects the English of the transcript, not your pronunciation; a word the recognizer probably misheard is tagged `[STT?]` instead of being counted as a grammar mistake. Keep the dictation language set to English in `/config`: speaking your own language with it produces garbled text, which nudges you toward English.
+The fastest way to practice is to dictate. Claude Code has voice dictation of its own (`/voice`), and the **Voice** button beside the lamp turns it on and off and shows its state. The coach corrects the English of the transcript, not your pronunciation; a word the recognizer probably misheard is tagged `[STT?]` instead of being counted as a grammar mistake. Keep the dictation language set to English in `/config`: speaking your own language with it produces garbled text, which nudges you toward English.
 
 Voice dictation is Claude Code's feature, not this plugin's. It needs a claude.ai sign-in (it does not work with an API key, Bedrock, Vertex AI or Foundry), a local microphone (not over SSH or on the web) and Claude Code 2.1.69 or newer; transcription itself costs no tokens. Details in [Claude Code's voice dictation docs](https://code.claude.com/docs/en/voice-dictation).
+
+## The pane
+
+Click **💡 esol** under the prompt, or type `/esol`. **Tab** moves, **Enter** selects, **Esc** closes. The lamp and **Voice** sit beside whatever Claude Code and your other mods draw in that row. The pane follows Claude Code's theme, and closes when another mod's pane opens, so the sidebar shows one at a time.
+
+Looking for the Focus band, the Model page, themes or the status line editor that cc-esol 1.x had? They are their own plugin now: [cc-focusdeck](https://github.com/rapha-rodrigues/cc-focusdeck).
 
 ## Privacy and cost
 
@@ -35,56 +41,14 @@ Voice dictation is Claude Code's feature, not this plugin's. It needs a claude.a
 
 **What it costs** (estimates, at about four characters per token)
 
-- Themes, Model, Status line, Voice and Icons: nothing. They read what Claude Code already emits and never add to a request.
-- ESOL coaching, while On: about 700 tokens of rules in the `english_log` tool's description, sent with the tool list and cached; about 40 tokens beside each English prompt; and each correction is one tool call of roughly 150 to 300 output tokens that stays in the conversation. Off: nothing, the tool waits behind ToolSearch.
-- Focus, while On: about 350 tokens for the `focus_progress` tool, also cached; about 35 tokens beside each prompt; and Claude's updates, roughly 100 output tokens for a plan plus 25 per step, sent alongside its other tool calls. Off: nothing.
-- For scale: every Claude Code request already carries tens of thousands of tokens of system prompt and tool definitions, so the fixed part is small; the corrections are what grows with use. Switching either feature on or off rewrites the prompt cache once.
-- The plugin never changes Claude Code's system prompt: what it tells Claude rides in its own tools' descriptions and beside your prompts.
-
-## The rest of the sidebar
-
-Click **💡 esol** at the bottom right, or type `/esol` (also `/esol model`, `/esol settings`, `/esol themes`, `/esol focus`, `/esol statusline`, `/esol editor`). Three tabs: **ESOL**, **Model**, **Settings**. **Tab** moves, **Enter** selects, **Esc** closes. Beside the corner button, **Model** jumps to the Model page and **Voice** toggles dictation.
-
-<img src="docs/screenshots/footer.png" alt="The footer: ccstatusline's three lines, then the corner button, Model and Voice on" width="720">
-
-### Model
-
-The model (Fable, Opus, Sonnet, Haiku, or Claude Code's default), the effort from low to max, and the permission mode new sessions start in. The model switch runs Claude Code's own `/model`; the effort applies to every request and is remembered; the running session's mode changes with **shift+tab**, the pick here is saved as `permissions.defaultMode`.
-
-<img src="docs/screenshots/model.png" alt="The Model page: model chips, effort chips low to max, the running mode and the mode new sessions start in" width="420">
-
-### Focus
-
-A band above the prompt with the task's title, a clock, a progress bar and the steps. While Focus is On, Claude posts its plan to the band's own `focus_progress` tool before a task of more than two tool calls, then the number of each step as it starts, so each line moves from pending to running to done; a todo list, the task tools or a plan approved in plan mode feed the band too where the session has them. Under the running step, a feed of the last tool calls as Claude itself described them ("Read the settings page and its tests"): click a row, or reach it with ctrl+x tab, to open what the call ran and the first lines it printed, and again to close it; the calls stay until your next prompt. Tool calls and tool results are hidden from the transcript while Focus is On, except a call that failed or was interrupted; ctrl+o shows every call in full. The turn's end with steps still pending pauses the band, and a turn that was interrupted or failed says so; your next prompt resumes it. `[–]` shrinks it to one line. Colors: blue, dark, light, green, pink, rainbow or a custom one.
-
-<img src="docs/screenshots/focus-band.png" alt="The Focus band above the prompt: the task's title, clock and call count, the progress bar, the steps with their clocks, the running step tinted, and its calls under it" width="860">
-
-In the fullscreen layout, three open Claude Code issues ([#102893](https://github.com/anthropics/claude-code/issues/102893), [#104197](https://github.com/anthropics/claude-code/issues/104197), [#104462](https://github.com/anthropics/claude-code/issues/104462)) can make the wheel jump or the last row blink on hidden rows.
-
-### Themes
-
-Over a hundred terminal color themes from [terminalcolors.com](https://terminalcolors.com), downloaded once to `~/.claude/cc-esol/themes/`. Click one: Claude Code's colors follow (written as `~/.claude/themes/cc-esol.json` and set in `~/.claude/settings.json`; restart once the first time, live after that) and so does the terminal's background on Windows Terminal (for the session, then restored) and on terminals that take OSC colors (Ghostty, iTerm2, kitty, WezTerm, Terminal.app). **Claude Code default** puts the original colors back.
-
-<img src="docs/screenshots/themes.png" alt="The Themes page: a searchable list of themes, each with its eight-color swatch, the kept one marked" width="420">
-
-### Status line and Layout Editor
-
-The Status line page installs, checks and removes [ccstatusline](https://github.com/sirmalloc/ccstatusline), a third-party status line. Install writes the `statusLine` block into `~/.claude/settings.json` (keeping what was there, for Uninstall) and a starter config where none exists; a status line you set yourself is shown and left alone. **Layout Editor** edits `~/.config/ccstatusline/settings.json` in place: lines, widgets, colors, powerline and layout, with a live preview drawn by your own status line command. Save dry-runs the candidate the same way, backs the file up and replaces it in one step, keeping everything it does not edit. Details in [docs/statusline.md](docs/statusline.md).
-
-<p>
-<img src="docs/screenshots/statusline.png" alt="The Status line page: Layout Editor, Check version, Remove the statusLine setting, and the ccstatusline disclaimer" width="420">
-<img src="docs/screenshots/layout-editor.png" alt="The Layout Editor: the three lines, the widgets of one with their colors, the live preview" width="420">
-</p>
-
-### Settings
-
-The Focus switch and its color, the theme as a chip with its name, the status line, and the icon set (Nerd Font, Unicode, or Auto: Nerd Font when your ccstatusline config draws powerline, so no font is ever installed or required).
-
-<img src="docs/screenshots/settings.png" alt="The Settings tab: Focus On/Off and the Focus color chip, the theme as a chip with its name, the status line chip, and the icon set last" width="420">
+- While coaching is On: about 700 tokens of rules in the `english_log` tool's description, sent with the tool list and cached; about 40 tokens beside each English prompt; and each correction is one tool call of roughly 150 to 300 output tokens that stays in the conversation. Off: nothing, the tool waits behind ToolSearch.
+- Voice: nothing. It reads what Claude Code already emits and never adds to a request.
+- For scale: every Claude Code request already carries tens of thousands of tokens of system prompt and tool definitions, so the fixed part is small; the corrections are what grows with use. Switching coaching on or off rewrites the prompt cache once.
+- The plugin never changes Claude Code's system prompt: what it tells Claude rides in its own tool's description and beside your prompts.
 
 ## Requirements and install
 
-Claude Code 2.1.299 or newer, on macOS, Linux or Windows. Developed and tested on 2.1.306.
+Claude Code 2.1.299 or newer, on macOS, Linux or Windows. Developed and tested on 2.1.310.
 
 ```
 claude plugin marketplace add rapha-rodrigues/cc-esol
@@ -96,6 +60,8 @@ Run `/reload-plugins` or start a new session, then click **💡 esol** or type `
 ```
 claude plugin marketplace update esol && claude plugin update cc-esol@esol
 ```
+
+**Upgrading from 1.x:** your coaching settings and the learning log carry over. Focus, the Model page, themes and the status line moved to [cc-focusdeck](https://github.com/rapha-rodrigues/cc-focusdeck), which starts with its own settings: before updating, pick **Claude Code default** in the Themes page and settle any status line Uninstall or Put it back, then set them again there.
 
 **Upgrading from a `--plugin-dir` checkout:** the plugin's store is keyed by where the plugin was installed from, so the marketplace install starts with default settings (coaching Off, no kept review). The learning log is untouched: it lives outside the store.
 
@@ -115,17 +81,17 @@ On Windows, use forward slashes in paths when running in Git Bash.
 
 ## Languages
 
-Twenty languages to pick from in the ESOL settings, or **Other** with the name typed in. The language only tells the coach whose interference habits to look for; the gate that decides whether a prompt is English knows nothing about your language, so it works for any. The sidebar itself speaks English.
+Twenty languages to pick from in the coach's settings, or **Other** with the name typed in. The language only tells the coach whose interference habits to look for; the gate that decides whether a prompt is English knows nothing about your language, so it works for any. The pane itself speaks English.
 
 ## Troubleshooting
 
-- **No entries appear.** Open the ESOL tab's Settings and check that coaching is On. Hooks load at session start: restart Claude Code or run `/reload-plugins` after installing or updating.
+- **No entries appear.** Open the pane's Settings and check that coaching is On. Hooks load at session start: restart Claude Code or run `/reload-plugins` after installing or updating.
 - **A prompt in my language was coached.** Its English words reached the cutoff (loanwords like push, merge or fix count). Raise the cutoff in Settings. Claude also skips a message it can see is not English.
 - **An English prompt was not coached.** Too few of its words are everyday English (short, jargon-heavy prompts). Lower the cutoff or the minimum words in Settings.
 - **The Voice button says `/voice` is unavailable.** Sign in with a claude.ai account (`/login`); dictation does not work with an API key or a third-party provider.
-- **The log keeps growing.** Nothing prunes it. Archive it with a rename; the next entry recreates the file. Past 4 MiB the tab stops previewing it and Review asks you to archive first.
+- **The log keeps growing.** Nothing prunes it. Archive it with a rename; the next entry recreates the file. Past 4 MiB the pane stops previewing it and Review asks you to archive first.
 - **A notice says a cc-esol hook was skipped.** Versions before 1.0.1 hooked two classic events that Claude Code's built-in guard (`cc-plugin-sec-default`) keeps from user plugins on Team and Enterprise logins, and the guard said so on every prompt and tool call. Update the plugin and the notice is gone; cc-esol works the same on every account.
-- More in [docs/english-coach.md](docs/english-coach.md) and [docs/statusline.md](docs/statusline.md).
+- More in [docs/english-coach.md](docs/english-coach.md).
 
 ## Develop
 
@@ -137,8 +103,10 @@ claude plugin test ./plugins/cc-esol
 
 Releases follow [docs/releasing.md](docs/releasing.md); changes are in [CHANGELOG.md](CHANGELOG.md).
 
-## License and credits
+## More for Claude Code
+
+[cc-focusdeck](https://github.com/rapha-rodrigues/cc-focusdeck), by the same author: a Focus band with the task's progress above the prompt, model and effort controls, terminal themes and a status line editor. It installs beside cc-esol or on its own.
+
+## License
 
 [MIT](LICENSE).
-
-[ccstatusline](https://github.com/sirmalloc/ccstatusline) is a separate project by Matthew Breedlove, MIT-licensed; nothing of it ships in this plugin, which only recommends it, installs it and edits its config. The terminal themes come from [terminalcolors.com](https://terminalcolors.com) and are downloaded at runtime, on your request; none of them ships here either.

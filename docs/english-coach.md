@@ -1,6 +1,6 @@
 # English coach
 
-Passive American English coaching for someone whose first language is not English, as the **ESOL** tab of the sidebar (English for Speakers of Other Languages). Every prompt you send (typed or voice-dictated) runs exactly as usual; Claude silently appends a nativized correction to a single learning file. No blocking, no interruptions, nothing in the reply.
+Passive American English coaching for someone whose first language is not English, in a pane of its own (ESOL: English for Speakers of Other Languages). Every prompt you send (typed or voice-dictated) runs exactly as usual; Claude silently appends a nativized correction to a single learning file. No blocking, no interruptions, nothing in the reply.
 
 ## What it does
 
@@ -23,11 +23,11 @@ Passive American English coaching for someone whose first language is not Englis
 - **Missing apostrophes in contractions are ignored** (`im`, `dont`, `thats`, `howd`, `theres`): typing speed, not a language gap. The word-choice pairs stay in scope, since those are grammar: `its`/`it's`, `your`/`you're`, `their`/`they're`/`there`, `whose`/`who's`, `were`/`we're`.
 - Skipped automatically, at zero token cost: slash commands, prompts under the minimum word count ("yes", "continue"), prompts that are not English, and anything that is not your own words (notifications, messages from other sessions).
 - Probable dictation (STT) errors are tagged `[STT?]` instead of being treated as grammar mistakes.
-- The tab's **Review** reads the whole log in one model call (the session's model) and shows a compact analysis inside the tab: recurring patterns with real examples, false cognates and interference habits from your language, a progress signal over the last two weeks, three drills. The result is kept until you run it again. `/cc-esol:english-review` does the same in the transcript and then lists every entry; arguments: a topic (`/cc-esol:english-review prepositions`) narrows both parts, a number (`/cc-esol:english-review 20`) caps the listing at the 20 newest entries, and the two combine.
+- The pane's **Review** reads the whole log in one model call (the session's model) and shows a compact analysis inside the pane: recurring patterns with real examples, false cognates and interference habits from your language, a progress signal over the last two weeks, three drills. The result is kept until you run it again. `/cc-esol:english-review` does the same in the transcript and then lists every entry; arguments: a topic (`/cc-esol:english-review prepositions`) narrows both parts, a number (`/cc-esol:english-review 20`) caps the listing at the 20 newest entries, and the two combine.
 
-## The tab
+## The pane
 
-Open the menu (click **💡 esol ▲** or type `/esol esol`) and pick **ESOL**. It opens on the corrections, newest first, one row each with the date and the start of what you wrote. Click a row (or Tab to it and press Enter) to open it: the original, the native version and the reasons, one per correction. The mouse wheel and the arrow keys scroll the list; the tab strip stays put.
+Open the pane (click **💡 esol ▲** under the prompt or type `/esol`). It opens on the corrections, newest first, one row each with the date and the start of what you wrote. Click a row (or Tab to it and press Enter) to open it: the original, the native version and the reasons, one per correction. The mouse wheel and the arrow keys scroll the list.
 
 **↗ Review** shows the last review, or runs one when there is none; **↻ Run again** on that page runs a fresh one. **⚙ Settings** holds:
 
@@ -93,7 +93,7 @@ The log is only worth what you extract from it. Suggested cadence: one weekly `/
 
 ## Maintenance
 
-- **Nothing prunes the log.** Every entry stays until you move it. At roughly 1 KB per entry this is a context cost long before it is a disk cost, since the review reads the whole file, and the tab stops previewing the log past 4 MiB. Archive with a plain rename:
+- **Nothing prunes the log.** Every entry stays until you move it. At roughly 1 KB per entry this is a context cost long before it is a disk cost, since the review reads the whole file, and the pane stops previewing the log past 4 MiB. Archive with a plain rename:
 
   ```bash
   mv ~/.claude/english-learning/learning.md ~/.claude/english-learning/learning-$(date +%Y-%m).md
@@ -105,7 +105,7 @@ The log is only worth what you extract from it. Suggested cadence: one weekly `/
 
 ## Troubleshooting
 
-- **No entries appearing**: open the tab's Settings and check that coaching is On; `/esol esol` opens the tab. Hooks load at session start, so restart Claude Code (or `/reload-plugins`) after installing or updating.
+- **No entries appearing**: open the pane's Settings and check that coaching is On; `/esol` opens the pane. Hooks load at session start, so restart Claude Code (or `/reload-plugins`) after installing or updating.
 - **Claude announced the log or the corrections**: the instruction tells it not to; it occasionally does anyway. Nothing to configure.
 - **Entries logged for prompts that were fine**: the "already natural" judgment is Claude's. Tighten rule 1 in `hooks/lib/english.ts` (`coachingContract`) if it over-logs.
 - **Apostrophes still being corrected**: rule 2 in `coachingContract` covers them. Add the spelling you keep seeing to its list, but keep the `its`/`it's` style pairs out, since those are genuine word choices.
