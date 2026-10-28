@@ -4,6 +4,8 @@
 
 <p align="center"><a href="README.md">English</a> · <b>Português</b> · <a href="README.es.md">Español</a> · <a href="README.zh-CN.md">中文</a></p>
 
+<p align="center"><a href="https://mods.aidojo.si/mods/rapha-rodrigues--cc-esol--cc-esol/"><img src="https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/rapha-rodrigues--cc-esol--cc-esol-reach.svg" alt="reach"></a> <a href="https://mods.aidojo.si/mods/rapha-rodrigues--cc-esol--cc-esol/"><img src="https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/rapha-rodrigues--cc-esol--cc-esol-validates.svg" alt="validates"></a></p>
+
 **Aprenda inglês no seu uso diário do Claude Code.**
 
 ESOL quer dizer *English for Speakers of Other Languages*, inglês para falantes de outras línguas. O cc-esol é um coach de inglês passivo para o [Claude Code](https://claude.com/claude-code): você continua escrevendo seus prompts como sempre, e o inglês que digita ou dita é corrigido num registro de aprendizado que você lê quando quiser. Ele faz o coaching e mais nada, então convive com os mods de foco, tema ou status line que você já usa.
