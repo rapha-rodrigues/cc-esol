@@ -4,7 +4,7 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.pt-BR.md">Português</a> · <b>Español</b> · <a href="README.zh-CN.md">中文</a></p>
 
-<p align="center"><a href="https://mods.aidojo.si/mods/rapha-rodrigues--cc-esol--cc-esol/"><img src="https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/rapha-rodrigues--cc-esol--cc-esol-reach.svg" alt="reach"></a> <a href="https://mods.aidojo.si/mods/rapha-rodrigues--cc-esol--cc-esol/"><img src="https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/rapha-rodrigues--cc-esol--cc-esol-validates.svg" alt="validates"></a></p>
+<p align="center"><a href="https://mods.aidojo.si/mods/rapha-rodrigues--cc-esol--cc-esol/"><img src="docs/awesome.re-svg-1.svg" alt="Mentioned in an Awesome list"></a> <a href="https://mods.aidojo.si/mods/rapha-rodrigues--cc-esol--cc-esol/"><img src="https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/rapha-rodrigues--cc-esol--cc-esol-reach.svg" alt="reach"></a> <a href="https://mods.aidojo.si/mods/rapha-rodrigues--cc-esol--cc-esol/"><img src="https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/rapha-rodrigues--cc-esol--cc-esol-validates.svg" alt="validates"></a></p>
 
 *Traducido del README en inglés, que es la versión de referencia. Las correcciones son bienvenidas.*
 
