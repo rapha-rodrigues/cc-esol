@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/icon.svg" width="96" alt=""></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/icon-dark.gif"><img src="docs/icon-light.gif" width="96" alt=""></picture></p>
 
 # cc-esol
 
