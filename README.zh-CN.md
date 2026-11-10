@@ -12,6 +12,8 @@
 
 ESOL 是 *English for Speakers of Other Languages* 的缩写，意为“面向其他语言使用者的英语”。cc-esol 是 [Claude Code](https://claude.com/claude-code) 的一位被动英语教练：你照常写 prompt，你打字或口述的英语会被纠正并写进一份学习日志，想看的时候再看。它只做纠正这一件事，所以能与你已在使用的专注、主题或状态栏类 mod 共存。
 
+<p align="center"><img src="docs/screenshots/demo.gif" alt="Claude Code 中的 cc-esol：在 ESOL 面板中把 coaching 设为 On，发送一条英文 prompt，面板列出它的纠正，显示地道版本和原因"></p>
+
 ## 工作方式
 
 1. 点击 prompt 下方的 **💡 esol**，打开 **Settings**，把 coaching 设为 **On**，选择你的母语。

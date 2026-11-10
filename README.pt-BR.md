@@ -10,6 +10,8 @@
 
 ESOL quer dizer *English for Speakers of Other Languages*, inglês para falantes de outras línguas. O cc-esol é um coach de inglês passivo para o [Claude Code](https://claude.com/claude-code): você continua escrevendo seus prompts como sempre, e o inglês que digita ou dita é corrigido num registro de aprendizado que você lê quando quiser. Ele faz o coaching e mais nada, então convive com os mods de foco, tema ou status line que você já usa.
 
+<p align="center"><img src="docs/screenshots/demo.gif" alt="O cc-esol no Claude Code: o coaching ligado no painel ESOL, um prompt em inglês enviado e a correção dele listada no painel, com a versão nativa e os motivos"></p>
+
 ## Como funciona
 
 1. Clique em **💡 esol** abaixo do prompt, abra **Settings**, ligue o coaching (**On**) e escolha a sua língua.
