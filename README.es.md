@@ -10,6 +10,8 @@
 
 **Aprende inglés con tu uso diario de Claude Code.**
 
+La mayor parte de mi equipo está en Brasil, una parte en Estados Unidos, y el inglés es el idioma en el que trabajamos juntos. cc-esol nació de una idea sencilla: la herramienta que más usamos cada día, Claude Code, también podía ser el lugar donde mejora nuestro inglés.
+
 ESOL significa *English for Speakers of Other Languages*, inglés para hablantes de otras lenguas. cc-esol es un coach de inglés pasivo para [Claude Code](https://claude.com/claude-code): sigues escribiendo tus prompts como siempre, y el inglés que tecleas o dictas se corrige en un registro de aprendizaje que lees cuando quieras. Hace el coaching y nada más, así que convive con los mods de foco, tema o status line que ya usas.
 
 <p align="center"><img src="docs/screenshots/demo.gif" alt="cc-esol en Claude Code: el coaching activado en el panel ESOL, un prompt en inglés enviado y su corrección listada en el panel, con la versión nativa y los motivos"></p>
